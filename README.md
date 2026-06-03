@@ -2,7 +2,7 @@
 
 # MadRabbit: A Web Security Vulnerability Lab Platform
 
-![Web Security](https://img.shields.io/badge/Web%20Security-Lab-red) ![Java](https://img.shields.io/badge/Java%20%2B%20Spring%20Boot-17%20%2B%202.7-007396) ![Version](https://img.shields.io/badge/Version-v1.0-blue) ![GitHub stars](https://img.shields.io/github/stars/zhuifengshaonianhanlu/MadRabbit?style=social) ![GitHub forks](https://img.shields.io/github/forks/zhuifengshaonianhanlu/MadRabbit?style=social) ![License](https://img.shields.io/badge/License-Custom-orange)
+![Web Security](https://img.shields.io/badge/Web%20Security-Lab-red) ![Java](https://img.shields.io/badge/Java%20%2B%20Spring%20Boot-17%20%2B%202.7-007396) ![Version](https://img.shields.io/badge/Version-v1.0-blue) ![GitHub stars](https://img.shields.io/github/stars/zhuifengshaonianhanlu/MadRabbit?style=social) ![GitHub forks](https://img.shields.io/github/forks/zhuifengshaonianhanlu/MadRabbit?style=social) ![](https://img.shields.io/badge/Status-Developing-green)
 
 ## 1. Introduction
 
