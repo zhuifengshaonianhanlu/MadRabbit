@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POST型CSRF</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        html { height: 100%; }
+        body { margin: 0; padding: var(--spacing-sm) var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); height: 100%; overflow: hidden; }
+        .level-content { height: 100%; display: flex; flex-direction: column; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-sm); margin-bottom: var(--spacing-sm); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; flex-shrink: 0; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        
+        .main-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: var(--spacing-md) var(--spacing-lg); width: 100%; flex: 0 1 auto; min-height: 0; overflow: hidden; }
+        .section-title { color: var(--color-gold); font-size: 1rem; margin-bottom: var(--spacing-sm); padding-bottom: var(--spacing-xs); border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
+        .status-box { background: rgba(0, 0, 0, 0.3); padding: var(--spacing-sm); border-radius: 4px; margin-bottom: var(--spacing-md); }
+        .status-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .status-item:last-child { border-bottom: none; }
+        .status-label { color: var(--color-text-secondary); }
+        .status-value { color: var(--color-gold-light); font-family: 'Courier New', monospace; }
+        .form-group { display: flex; gap: 8px; align-items: center; margin-bottom: var(--spacing-md); }
+        .form-label { display: block; margin-bottom: 6px; color: var(--color-text-secondary); font-size: 0.9rem; }
+        .form-input { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 3px; padding: 0.75rem 1rem; color: var(--color-text-primary); font-size: 0.95rem; }
+        .form-input:focus { outline: none; border-color: var(--color-gold); }
+        .action-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 3px; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+        .action-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .feedback { margin-top: 0.5rem; padding: 0.5rem; border-radius: 3px; font-size: 0.85rem; min-height: 1.2em; }
+        .feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        
+        
+        .tips-box { margin-top: var(--spacing-sm); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; flex-shrink: 0; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="csrfPost.title">POST型CSRF - 密码修改</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="csrfPost.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="csrfPost.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <h3 class="section-title" data-i18n="csrfPost.currentStatus">当前状态</h3>
+            <div class="status-box">
+                <div class="status-item">
+                    <span class="status-label" data-i18n="csrfPost.username">用户名</span>
+                    <span class="status-value" id="username-display">loading...</span>
+                </div>
+            </div>
+            
+            <h3 class="section-title" data-i18n="csrfPost.changePassword">修改密码</h3>
+            <div class="form-group">
+                <input type="password" id="new-password" class="form-input" data-i18n-placeholder="csrfPost.passwordPlaceholder" placeholder="输入新密码..." />
+                <button id="change-btn" class="action-btn" data-i18n="csrfPost.changeBtn">修改密码</button>
+            </div>
+            <div id="feedback" class="feedback"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="csrfPost.tips">提示</h3>
+            <ul>
+                <li data-i18n="csrfPost.tip1">表单可以藏在你看不见的地方</li>
+                <li data-i18n="csrfPost.tip2">提交按钮不一定需要人来按</li>
+                <li data-i18n="csrfPost.tip3">POST请求就安全了？那可未必</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            return headers;
+        }
+
+        const i18n = {
+            'zh-CN': {
+                'csrfPost.title': 'POST型CSRF - 密码修改',
+                'csrfPost.flagPlaceholder': '输入 Flag...',
+                'csrfPost.submit': '提交',
+                'csrfPost.currentStatus': '当前状态',
+                'csrfPost.username': '用户名',
+                'csrfPost.changePassword': '修改密码',
+                'csrfPost.newPassword': '新密码',
+                'csrfPost.passwordPlaceholder': '输入新密码...',
+                'csrfPost.changeBtn': '修改密码',
+                'csrfPost.tips': '提示',
+                'csrfPost.tip1': '表单可以藏在你看不见的地方',
+                'csrfPost.tip2': '提交按钮不一定需要人来按',
+                'csrfPost.tip3': 'POST请求就安全了？那可未必',
+                'csrfPost.enterPassword': '请输入新密码',
+                'csrfPost.success': '密码修改成功！',
+                'csrfPost.congrats': '恭喜！POST型CSRF关卡完成！',
+                'csrfPost.enterFlag': '请输入 Flag',
+                'csrfPost.flagError': 'Flag 不正确',
+                'csrfPost.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'csrfPost.title': 'POST CSRF - Password Change',
+                'csrfPost.flagPlaceholder': 'Enter Flag...',
+                'csrfPost.submit': 'Submit',
+                'csrfPost.currentStatus': 'Current Status',
+                'csrfPost.username': 'Username',
+                'csrfPost.changePassword': 'Change Password',
+                'csrfPost.newPassword': 'New Password',
+                'csrfPost.passwordPlaceholder': 'Enter new password...',
+                'csrfPost.changeBtn': 'Change Password',
+                'csrfPost.tips': 'Tips',
+                'csrfPost.tip1': 'Forms can hide where you can\'t see them',
+                'csrfPost.tip2': 'Submit buttons don\'t always need a human to press',
+                'csrfPost.tip3': 'POST requests are safe? Think again',
+                'csrfPost.enterPassword': 'Please enter new password',
+                'csrfPost.success': 'Password changed successfully!',
+                'csrfPost.congrats': 'Congratulations! POST CSRF challenge completed!',
+                'csrfPost.enterFlag': 'Please enter Flag',
+                'csrfPost.flagError': 'Incorrect flag',
+                'csrfPost.networkError': 'Network error, please try again later'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            loadStatus();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=csrf&vul_level=level2', {
+                    credentials: 'same-origin',
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { console.error('查询关卡状态失败:', error); }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ vul_type: 'csrf', vul_level: 'level2', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'csrf', level: 'level2', status: status }, '*');
+                }
+            } catch (error) { console.error('更新关卡状态失败:', error); }
+        }
+
+        function bindEvents() {
+            document.getElementById('change-btn').addEventListener('click', handleChangePassword);
+            document.getElementById('new-password').addEventListener('keypress', e => { if (e.key === 'Enter') handleChangePassword(); });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/challenge/csrf/post/status', {
+                    credentials: 'same-origin',
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+                document.getElementById('username-display').textContent = result.username || 'testuser';
+            } catch (error) {
+                document.getElementById('username-display').textContent = 'testuser';
+            }
+        }
+
+        async function handleChangePassword() {
+            const password = document.getElementById('new-password').value.trim();
+            const feedbackEl = document.getElementById('feedback');
+            if (!password) {
+                feedbackEl.className = 'feedback error';
+                feedbackEl.textContent = t('csrfPost.enterPassword');
+                return;
+            }
+            try {
+                const response = await fetch('/api/challenge/csrf/post/change-password', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ newPassword: password })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    feedbackEl.className = 'feedback success';
+                    feedbackEl.textContent = t('csrfPost.success');
+                } else {
+                    feedbackEl.className = 'feedback error';
+                    feedbackEl.textContent = result.message || t('csrfPost.networkError');
+                }
+            } catch (error) {
+                feedbackEl.className = 'feedback error';
+                feedbackEl.textContent = t('csrfPost.networkError');
+            }
+        }
+
+        async function handleSubmitFlag() {
+            const flag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            if (!flag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('csrfPost.enterFlag');
+                return;
+            }
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ vul_type: 'csrf', vul_level: 'level2', flag: flag })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('csrfPost.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'csrf', level: 'level2' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('csrfPost.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('csrfPost.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

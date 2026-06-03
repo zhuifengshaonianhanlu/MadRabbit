@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brute Force</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: var(--spacing-lg); 
+            background: transparent; 
+            color: var(--color-text-primary); 
+            font-family: var(--font-body); 
+            min-height: 100vh;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--spacing-md);
+            padding-bottom: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid transparent;
+            background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat;
+        }
+        .level1-content h1 { 
+            font-family: var(--font-display); 
+            font-size: clamp(1rem, 3vw, 1.8rem); 
+            font-weight: 600; 
+            color: var(--color-gold); 
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .flag-submit-form { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-shrink: 0;
+        }
+        .flag-input-inline { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 4px; 
+            padding: 8px 12px; 
+            color: var(--color-text-primary); 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+            width: 180px; 
+        }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 4px; 
+            padding: 8px 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+        }
+        .flag-submit-btn-small:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        .login-form-container { 
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 6px; 
+            padding: 1.5rem; 
+            max-width: 360px; 
+            margin: 0 auto;
+        }
+        .login-form { display: flex; flex-direction: column; gap: 0.75rem; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 0.75rem; font-weight: 600; color: var(--color-gold); letter-spacing: 1px; }
+        .form-input { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 3px; 
+            padding: 0.5rem 0.75rem; 
+            color: var(--color-text-primary); 
+            font-size: 0.9rem; 
+        }
+        .form-input:focus { outline: none; border-color: var(--color-gold); }
+        .login-btn { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 3px; 
+            padding: 0.5rem 1rem; 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            margin-top: 0.5rem; 
+            letter-spacing: 1px;
+        }
+        .login-btn:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-feedback { 
+            margin-top: 0.5rem; 
+            padding: 0.5rem; 
+            border-radius: 3px; 
+            font-size: 0.8rem; 
+            text-align: center; 
+            min-height: 1.2em; 
+        }
+        .login-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .login-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        .tips-box { 
+            margin-top: var(--spacing-xl); 
+            padding: var(--spacing-md); 
+            background: rgba(212, 175, 55, 0.05); 
+            border-left: 3px solid var(--color-gold); 
+            border-radius: 4px; 
+        }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        @media (max-width: 768px) {
+            .flag-input-inline { width: 140px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="level1-content">
+        <!-- 头部区域 -->
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="bruteforce.title">暴力破解 - 弱密码破解</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="bruteforce.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="bruteforce.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <!-- 登录表单 -->
+        <div class="login-form-container">
+            <div class="login-form">
+                <div class="form-group">
+                    <label for="username">USERNAME</label>
+                    <input type="text" id="username" class="form-input" data-i18n-placeholder="bruteforce.usernamePlaceholder" placeholder="请输入用户名" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="password">PASSWORD</label>
+                    <input type="password" id="password" class="form-input" data-i18n-placeholder="bruteforce.passwordPlaceholder" placeholder="请输入密码" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="vericode">CAPTCHA</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="vericode" class="form-input" data-i18n-placeholder="bruteforce.captchaPlaceholder" placeholder="请输入验证码" autocomplete="off" maxlength="4" style="flex: 1; text-transform: uppercase;" />
+                        <div id="captcha-display" onclick="refreshCaptcha()" data-i18n-title="bruteforce.refreshCaptcha" title="点击刷新验证码" style="background: rgba(212, 175, 55, 0.1); border: 1px solid #d4af37; padding: 8px 12px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 1.1rem; font-weight: bold; letter-spacing: 3px; cursor: pointer; user-select: none; min-width: 80px; text-align: center; color: #d4af37;"></div>
+                    </div>
+                </div>
+                <button id="login-btn" class="login-btn" data-i18n="bruteforce.login">Login</button>
+                <div id="login-feedback" class="login-feedback"></div>
+            </div>
+        </div>
+
+        <!-- 提示 -->
+        <div class="tips-box">
+            <h3 data-i18n="bruteforce.tips">提示</h3>
+            <ul>
+                <li data-i18n="bruteforce.tip1">尝试使用常见的弱密码组合</li>
+                <li data-i18n="bruteforce.tip2">可以使用自动化工具进行批量尝试</li>
+                <li data-i18n="bruteforce.tip3">成功后将获得 Flag 并提交以完成挑战</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <!-- MD5加密库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+    <script>
+        let currentFlag = null;
+        let currentCaptcha = '';
+
+        // 国际化翻译
+        const i18n = {
+            'zh-CN': {
+                'bruteforce.title': '暴力破解 - 弱密码破解',
+                'bruteforce.flagPlaceholder': '输入 Flag...',
+                'bruteforce.submit': '提交',
+                'bruteforce.usernamePlaceholder': '请输入用户名',
+                'bruteforce.passwordPlaceholder': '请输入密码',
+                'bruteforce.captchaPlaceholder': '请输入验证码',
+                'bruteforce.refreshCaptcha': '点击刷新验证码',
+                'bruteforce.login': 'Login',
+                'bruteforce.tips': '提示',
+                'bruteforce.tip1': '尝试使用常见的弱密码组合',
+                'bruteforce.tip2': '可以使用自动化工具进行批量尝试',
+                'bruteforce.tip3': '成功后将获得 Flag 并提交以完成挑战',
+                'bruteforce.enterUserPass': '请输入用户名和密码',
+                'bruteforce.enterCaptcha': '请输入验证码',
+                'bruteforce.loggingIn': '登录中...',
+                'bruteforce.networkError': '网络错误，请稍后重试',
+                'bruteforce.enterFlag': '请输入 Flag',
+                'bruteforce.loginFirst': '请先登录获取 Flag',
+                'bruteforce.congrats': '恭喜！挑战完成！',
+                'bruteforce.flagError': 'Flag 错误'
+            },
+            'en-US': {
+                'bruteforce.title': 'Brute Force - Weak Password Crack',
+                'bruteforce.flagPlaceholder': 'Enter Flag...',
+                'bruteforce.submit': 'Submit',
+                'bruteforce.usernamePlaceholder': 'Enter username',
+                'bruteforce.passwordPlaceholder': 'Enter password',
+                'bruteforce.captchaPlaceholder': 'Enter captcha',
+                'bruteforce.refreshCaptcha': 'Click to refresh',
+                'bruteforce.login': 'Login',
+                'bruteforce.tips': 'Tips',
+                'bruteforce.tip1': 'Try common weak password combinations',
+                'bruteforce.tip2': 'You can use automated tools for batch attempts',
+                'bruteforce.tip3': 'You will get the Flag after success and submit it to complete the challenge',
+                'bruteforce.enterUserPass': 'Please enter username and password',
+                'bruteforce.enterCaptcha': 'Please enter captcha',
+                'bruteforce.loggingIn': 'Logging in...',
+                'bruteforce.networkError': 'Network error, please try again later',
+                'bruteforce.enterFlag': 'Please enter Flag',
+                'bruteforce.loginFirst': 'Please login first to get Flag',
+                'bruteforce.congrats': 'Congratulations! Challenge completed!',
+                'bruteforce.flagError': 'Incorrect flag'
+            }
+        };
+
+        // 获取当前语言
+        function getLang() {
+            return localStorage.getItem('lang') || 'en-US';
+        }
+
+        // 获取翻译文本
+        function t(key) {
+            const lang = getLang();
+            return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key;
+        }
+
+        // 初始化
+        async function init() {
+            generateCaptcha();
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            
+            // 监听语言切换事件（本地）
+            window.addEventListener('languageChanged', applyLanguage);
+            
+            // 监听父页面发送的语言切换消息（iframe 通信）
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    // 更新本地存储
+                    localStorage.setItem('lang', event.data.language);
+                    // 应用新语言
+                    applyLanguage();
+                }
+            });
+        }
+
+        // 应用语言
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            
+            // 更新所有 data-i18n 元素
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+            
+            // 更新所有 data-i18n-placeholder 元素
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.placeholder = i18n[lang][key];
+                }
+            });
+            
+            // 更新所有 data-i18n-title 元素
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.title = i18n[lang][key];
+                }
+            });
+        }
+
+        // 生成验证码 - 纯前端实现
+        function generateCaptcha() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let captcha = '';
+            for (let i = 0; i < 4; i++) captcha += chars.charAt(Math.floor(Math.random() * chars.length));
+            currentCaptcha = captcha;
+            document.getElementById('captcha-display').textContent = captcha;
+            return captcha;
+        }
+
+        function refreshCaptcha() {
+            generateCaptcha();
+            document.getElementById('vericode').value = '';
+        }
+
+        // 查询并更新关卡状态
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=auth-session&vul_level=level1');
+                const result = await response.json();
+                if (result.status === '未开始') {
+                    await updateChallengeStatus('进行中');
+                }
+            } catch (error) {
+                console.error('查询关卡状态失败:', error);
+            }
+        }
+
+        // 更新关卡状态
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'auth-session', vul_level: 'level1', status: status })
+                });
+                
+                // 通知父页面刷新进度和关卡状态
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'challengeStatusChanged',
+                        vulnType: 'auth-session',
+                        level: 'level1',
+                        status: status
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('更新关卡状态失败:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        // 处理登录
+        async function handleLogin() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const vericode = document.getElementById('vericode').value.trim().toUpperCase();
+            const feedbackEl = document.getElementById('login-feedback');
+            const loginBtn = document.getElementById('login-btn');
+            
+            if (!username || !password) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('bruteforce.enterUserPass');
+                return;
+            }
+            if (!vericode) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('bruteforce.enterCaptcha');
+                return;
+            }
+            if (vericode !== currentCaptcha) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = 'Captcha invalid';
+                refreshCaptcha();
+                return;
+            }
+            
+            loginBtn.disabled = true;
+            loginBtn.textContent = t('bruteforce.loggingIn');
+            
+            // 对密码进行MD5加密
+            if (typeof md5 !== 'function') {
+                console.error('MD5库未加载！');
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = 'System error: MD5 library not loaded';
+                loginBtn.disabled = false;
+                loginBtn.textContent = t('bruteforce.login');
+                return;
+            }
+            const passwordMd5 = md5(password);
+
+            try {
+                const response = await fetch('/api/challenge/auth-session/bf/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password: passwordMd5 })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    feedbackEl.className = 'login-feedback success';
+                    feedbackEl.textContent = result.message + ' | Flag: ' + result.flag;
+                    currentFlag = result.flag;
+                } else {
+                    feedbackEl.className = 'login-feedback error';
+                    feedbackEl.textContent = result.message;
+                    refreshCaptcha();
+                }
+            } catch (error) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('bruteforce.networkError');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = t('bruteforce.login');
+            }
+        }
+
+        // 处理 Flag 提交
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('bruteforce.enterFlag');
+                return;
+            }
+            
+            // 移除 currentFlag 的检查，直接调用后端接口验证
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'auth-session', vul_level: 'level1', flag: submittedFlag })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('bruteforce.congrats');
+                    await updateChallengeStatus('已完成');
+                    
+                    // 通知父页面刷新进度
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'challengeCompleted',
+                            vulnType: 'auth-session',
+                            level: 'level1'
+                        }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('bruteforce.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('bruteforce.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

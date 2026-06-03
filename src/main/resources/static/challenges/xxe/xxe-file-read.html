@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Configuration</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .main-container { max-width: 700px; margin: 0 auto; }
+        .desc-text { color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: var(--spacing-lg); line-height: 1.6; }
+
+        .xml-editor { width: 100%; min-height: 200px; background: rgba(0,0,0,0.3); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 6px; padding: 14px; font-family: 'Courier New', monospace; font-size: 0.85rem; color: var(--color-text-primary); resize: vertical; line-height: 1.5; }
+        .xml-editor:focus { outline: none; border-color: var(--color-gold); }
+
+        .btn-primary { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: #000; border: none; border-radius: 5px; padding: 11px 22px; font-weight: 600; cursor: pointer; font-size: 0.9rem; margin-top: var(--spacing-sm); }
+        .btn-primary:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+
+        .result-box { margin-top: var(--spacing-md); background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: var(--spacing-md); font-family: 'Courier New', monospace; font-size: 0.82rem; white-space: pre-wrap; word-break: break-all; color: var(--color-text-secondary); display: none; max-height: 300px; overflow-y: auto; }
+        .result-box.show { display: block; }
+        .result-box.success { border-color: rgba(34, 197, 94, 0.3); }
+        .result-box.error { border-color: rgba(255, 42, 42, 0.3); color: var(--color-danger); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; font-family: var(--font-display); font-size: 0.95rem; }
+        .tips-box ul { margin: 0; padding-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 data-i18n="xxe1.title">Import Configuration</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="xxe1.flagPlaceholder" placeholder="Enter Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="xxe1.submit">Submit</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <p class="desc-text" data-i18n="xxe1.desc">Submit your XML configuration below. The system will parse and display the configuration values.</p>
+
+            <textarea id="xml-input" class="xml-editor">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;config&gt;
+  &lt;username&gt;admin&lt;/username&gt;
+  &lt;theme&gt;dark&lt;/theme&gt;
+  &lt;language&gt;en&lt;/language&gt;
+&lt;/config&gt;</textarea>
+
+            <button id="btn-parse" class="btn-primary" data-i18n="xxe1.parse">Parse Configuration</button>
+
+            <div id="result-box" class="result-box"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="xxe1.hints">Hints</h3>
+            <ul>
+                <li data-i18n="xxe1.hint1">What features does an XML parser enable by default?</li>
+                <li data-i18n="xxe1.hint2">Besides normal XML elements, what else can XML declarations contain?</li>
+                <li data-i18n="xxe1.hint3">The flag is stored at: file:///flag/xxe-level1.txt</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'xxe1.title': '导入配置',
+                'xxe1.flagPlaceholder': '输入 Flag...',
+                'xxe1.submit': '提交',
+                'xxe1.desc': '提交您的 XML 配置，系统将解析并显示配置值。',
+                'xxe1.parse': '解析配置',
+                'xxe1.hints': '提示',
+                'xxe1.hint1': 'XML 解析器默认开启了哪些功能？',
+                'xxe1.hint2': '除了正常的 XML 元素，XML 声明中还可以包含什么？',
+                'xxe1.hint3': 'Flag 文件路径：file:///flag/xxe-level1.txt',
+                'xxe1.congrats': '恭喜！关卡完成！',
+                'xxe1.enterFlag': '请输入 Flag',
+                'xxe1.flagError': 'Flag 不正确',
+                'xxe1.networkError': '网络错误'
+            },
+            'en-US': {
+                'xxe1.title': 'Import Configuration',
+                'xxe1.flagPlaceholder': 'Enter Flag...',
+                'xxe1.submit': 'Submit',
+                'xxe1.desc': 'Submit your XML configuration below. The system will parse and display the configuration values.',
+                'xxe1.parse': 'Parse Configuration',
+                'xxe1.hints': 'Hints',
+                'xxe1.hint1': 'What features does an XML parser enable by default?',
+                'xxe1.hint2': 'Besides normal XML elements, what else can XML declarations contain?',
+                'xxe1.hint3': 'The flag is stored at: file:///flag/xxe-level1.txt',
+                'xxe1.congrats': 'Congratulations! Challenge completed!',
+                'xxe1.enterFlag': 'Please enter Flag',
+                'xxe1.flagError': 'Incorrect flag',
+                'xxe1.networkError': 'Network error'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        async function handleParse() {
+            const xml = document.getElementById('xml-input').value;
+            const resultBox = document.getElementById('result-box');
+            try {
+                const res = await fetch('/api/challenge/xxe/level1/parse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/xml' },
+                    body: xml
+                });
+                const data = await res.json();
+                resultBox.className = 'result-box show ' + (data.success ? 'success' : 'error');
+                resultBox.textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                resultBox.className = 'result-box show error';
+                resultBox.textContent = t('xxe1.networkError');
+            }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('xxe1.enterFlag'); return; }
+            try {
+                const res = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'xxe', vul_level: 'level1', flag: submittedFlag })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('xxe1.congrats');
+                    if (window.parent !== window) window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'xxe', level: 'level1' }, '*');
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = data.message || t('xxe1.flagError');
+                }
+            } catch (e) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('xxe1.networkError'); }
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (i18n[lang] && i18n[lang][k]) el.textContent = i18n[lang][k]; });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const k = el.getAttribute('data-i18n-placeholder'); if (i18n[lang] && i18n[lang][k]) el.placeholder = i18n[lang][k]; });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-parse').addEventListener('click', handleParse);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', event => { if (event.data && event.data.type === 'languageChanged') { localStorage.setItem('lang', event.data.language); applyLanguage(); } });
+        });
+    </script>
+</body>
+</html>

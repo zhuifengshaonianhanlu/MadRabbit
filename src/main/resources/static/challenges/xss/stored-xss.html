@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stored XSS</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: var(--spacing-lg); 
+            background: transparent; 
+            color: var(--color-text-primary); 
+            font-family: var(--font-body); 
+            min-height: 100vh;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--spacing-md);
+            padding-bottom: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid transparent;
+            background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat;
+        }
+        .level-content h1 { 
+            font-family: var(--font-display); 
+            font-size: clamp(1rem, 3vw, 1.8rem); 
+            font-weight: 600; 
+            color: var(--color-gold); 
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .flag-submit-form { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-shrink: 0;
+        }
+        .flag-input-inline { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 4px; 
+            padding: 8px 12px; 
+            color: var(--color-text-primary); 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+            width: 180px; 
+        }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 4px; 
+            padding: 8px 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+        }
+        .flag-submit-btn-small:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        
+        .guestbook-container { 
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 6px; 
+            padding: 1.5rem; 
+            max-width: 700px; 
+            margin: 0 auto;
+        }
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--color-gold);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: var(--spacing-xs);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        .comment-form { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 0.75rem;
+            margin-bottom: var(--spacing-lg);
+        }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 0.75rem; font-weight: 600; color: var(--color-gold); letter-spacing: 1px; }
+        .form-input { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 3px; 
+            padding: 0.5rem 0.75rem; 
+            color: var(--color-text-primary); 
+            font-size: 0.9rem; 
+        }
+        .form-input:focus { outline: none; border-color: var(--color-gold); }
+        .form-textarea {
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 3px; 
+            padding: 0.5rem 0.75rem; 
+            color: var(--color-text-primary); 
+            font-size: 0.9rem;
+            font-family: var(--font-body);
+            resize: vertical;
+            min-height: 80px;
+        }
+        .form-textarea:focus { outline: none; border-color: var(--color-gold); }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: var(--spacing-xs);
+        }
+        .submit-btn { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 3px; 
+            padding: 0.5rem 1rem; 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            letter-spacing: 1px;
+        }
+        .submit-btn:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .reset-btn {
+            background: transparent;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            color: var(--color-text-secondary);
+            border-radius: 3px;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .reset-btn:hover {
+            border-color: var(--color-gold);
+            color: var(--color-gold);
+        }
+        
+        .post-feedback { 
+            margin-top: 0.5rem; 
+            padding: 0.5rem; 
+            border-radius: 3px; 
+            font-size: 0.8rem; 
+            text-align: center; 
+            min-height: 1.2em; 
+        }
+        .post-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .post-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        
+        .comments-section {
+            margin-top: var(--spacing-lg);
+        }
+        .comments-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: var(--spacing-xs);
+        }
+        .comment-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            padding: var(--spacing-sm);
+            border-left: 3px solid var(--color-gold);
+        }
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px dashed rgba(212, 175, 55, 0.2);
+        }
+        .comment-author {
+            color: var(--color-gold);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .comment-time {
+            color: var(--color-text-secondary);
+            font-size: 0.75rem;
+        }
+        .comment-content {
+            color: var(--color-text-primary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            word-break: break-word;
+        }
+        .no-comments {
+            color: var(--color-text-secondary);
+            text-align: center;
+            padding: var(--spacing-lg);
+        }
+        
+        .tips-box { 
+            margin-top: var(--spacing-xl); 
+            padding: var(--spacing-md); 
+            background: rgba(212, 175, 55, 0.05); 
+            border-left: 3px solid var(--color-gold); 
+            border-radius: 4px; 
+        }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        @media (max-width: 768px) {
+            .flag-input-inline { width: 140px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <!-- 头部区域 -->
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="storedXss.title">存储型XSS - 留言板注入</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="storedXss.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="storedXss.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <!-- 留言板容器 -->
+        <div class="guestbook-container">
+            <!-- 发表留言表单 -->
+            <div class="section-title" data-i18n="storedXss.postComment">发表留言</div>
+            <div class="comment-form">
+                <div class="form-group">
+                    <label for="author-input">NICKNAME</label>
+                    <input type="text" id="author-input" class="form-input" data-i18n-placeholder="storedXss.authorPlaceholder" placeholder="输入昵称..." autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="content-input">MESSAGE</label>
+                    <textarea id="content-input" class="form-textarea" data-i18n-placeholder="storedXss.contentPlaceholder" placeholder="输入留言内容..." rows="3"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button id="post-btn" class="submit-btn" data-i18n="storedXss.postBtn">发表留言</button>
+                    <button id="reset-btn" class="reset-btn" data-i18n="storedXss.resetBtn">重置留言板</button>
+                </div>
+                <div id="post-feedback" class="post-feedback"></div>
+            </div>
+
+            <!-- 留言列表 -->
+            <div class="comments-section">
+                <div class="section-title" data-i18n="storedXss.guestbook">留言板</div>
+                <div id="comments-list" class="comments-list">
+                    <div class="no-comments" data-i18n="storedXss.loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 提示 -->
+        <div class="tips-box">
+            <h3 data-i18n="storedXss.tips">提示</h3>
+            <ul>
+                <li data-i18n="storedXss.tip1">尝试发表包含HTML代码的留言</li>
+                <li data-i18n="storedXss.tip2">观察留言是如何在页面上渲染的</li>
+                <li data-i18n="storedXss.tip3">存储型XSS会影响所有访问者</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+
+        // 国际化翻译
+        const i18n = {
+            'zh-CN': {
+                'storedXss.title': '存储型XSS - 留言板注入',
+                'storedXss.flagPlaceholder': '输入 Flag...',
+                'storedXss.submit': '提交',
+                'storedXss.postComment': '发表留言',
+                'storedXss.authorPlaceholder': '输入昵称...',
+                'storedXss.contentPlaceholder': '输入留言内容...',
+                'storedXss.postBtn': '发表留言',
+                'storedXss.resetBtn': '重置留言板',
+                'storedXss.guestbook': '留言板',
+                'storedXss.loading': '加载中...',
+                'storedXss.noComments': '暂无留言',
+                'storedXss.tips': '提示',
+                'storedXss.tip1': '尝试发表包含HTML代码的留言',
+                'storedXss.tip2': '观察留言是如何在页面上渲染的',
+                'storedXss.tip3': '存储型XSS会影响所有访问者',
+                'storedXss.enterAuthor': '请输入昵称',
+                'storedXss.enterContent': '请输入留言内容',
+                'storedXss.posting': '发表中...',
+                'storedXss.postSuccess': '留言发表成功！',
+                'storedXss.congrats': '恭喜！存储型XSS关卡完成！',
+                'storedXss.enterFlag': '请输入 Flag',
+                'storedXss.flagError': 'Flag 不正确',
+                'storedXss.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'storedXss.title': 'Stored XSS - Guestbook Injection',
+                'storedXss.flagPlaceholder': 'Enter Flag...',
+                'storedXss.submit': 'Submit',
+                'storedXss.postComment': 'Post Comment',
+                'storedXss.authorPlaceholder': 'Enter nickname...',
+                'storedXss.contentPlaceholder': 'Enter your message...',
+                'storedXss.postBtn': 'Post',
+                'storedXss.resetBtn': 'Reset Guestbook',
+                'storedXss.guestbook': 'Guestbook',
+                'storedXss.loading': 'Loading...',
+                'storedXss.noComments': 'No comments yet',
+                'storedXss.tips': 'Tips',
+                'storedXss.tip1': 'Try posting a comment containing HTML code',
+                'storedXss.tip2': 'Observe how the comment is rendered on the page',
+                'storedXss.tip3': 'Stored XSS affects all visitors',
+                'storedXss.enterAuthor': 'Please enter nickname',
+                'storedXss.enterContent': 'Please enter message content',
+                'storedXss.posting': 'Posting...',
+                'storedXss.postSuccess': 'Comment posted successfully!',
+                'storedXss.congrats': 'Congratulations! Stored XSS challenge completed!',
+                'storedXss.enterFlag': 'Please enter Flag',
+                'storedXss.flagError': 'Incorrect flag',
+                'storedXss.networkError': 'Network error, please try again later'
+            }
+        };
+
+        // 获取当前语言
+        function getLang() {
+            return localStorage.getItem('lang') || 'en-US';
+        }
+
+        // 获取翻译文本
+        function t(key) {
+            const lang = getLang();
+            return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key;
+        }
+
+        // 显示反馈信息
+        function showFeedback(element, type, message) {
+            element.className = 'post-feedback ' + type;
+            element.textContent = message;
+        }
+
+        // 初始化
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            await loadComments();
+            bindEvents();
+            applyLanguage();
+            
+            // 监听语言切换事件（本地）
+            window.addEventListener('languageChanged', applyLanguage);
+            
+            // 监听父页面发送的语言切换消息（iframe 通信）
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        // 应用语言
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+            
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.placeholder = i18n[lang][key];
+                }
+            });
+        }
+
+        // 查询并更新关卡状态
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=xss&vul_level=level2');
+                const result = await response.json();
+                if (result.status === '未开始') {
+                    await updateChallengeStatus('进行中');
+                }
+            } catch (error) {
+                console.error('查询关卡状态失败:', error);
+            }
+        }
+
+        // 更新关卡状态
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'xss', vul_level: 'level2', status: status })
+                });
+                
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'challengeStatusChanged',
+                        vulnType: 'xss',
+                        level: 'level2',
+                        status: status
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('更新关卡状态失败:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            document.getElementById('post-btn').addEventListener('click', handlePostComment);
+            document.getElementById('reset-btn').addEventListener('click', handleReset);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        // 加载留言列表
+        async function loadComments() {
+            try {
+                const response = await fetch('/api/challenge/xss/stored/comments');
+                const result = await response.json();
+                if (result.success) {
+                    renderComments(result.comments);
+                }
+            } catch (error) {
+                console.error('加载留言失败:', error);
+                document.getElementById('comments-list').innerHTML = '<div class="no-comments">' + t('storedXss.networkError') + '</div>';
+            }
+        }
+
+        // 渲染留言列表 - 【漏洞核心】使用innerHTML
+        function renderComments(comments) {
+            const commentsDiv = document.getElementById('comments-list');
+            if (!comments || comments.length === 0) {
+                commentsDiv.innerHTML = '<div class="no-comments">' + t('storedXss.noComments') + '</div>';
+                return;
+            }
+            let html = '';
+            comments.forEach(c => {
+                html += '<div class="comment-item">';
+                html += '<div class="comment-header">';
+                html += '<span class="comment-author">' + c.author + '</span>';  // 不转义
+                html += '<span class="comment-time">' + c.time + '</span>';
+                html += '</div>';
+                html += '<div class="comment-content">' + c.content + '</div>';  // 不转义，XSS会执行
+                html += '</div>';
+            });
+            commentsDiv.innerHTML = html;  // 存储的XSS payload在这里执行
+        }
+
+        // 发表留言
+        async function handlePostComment() {
+            const author = document.getElementById('author-input').value.trim();
+            const content = document.getElementById('content-input').value.trim();
+            const feedbackEl = document.getElementById('post-feedback');
+            const postBtn = document.getElementById('post-btn');
+            
+            if (!author) {
+                showFeedback(feedbackEl, 'error', t('storedXss.enterAuthor'));
+                return;
+            }
+            if (!content) {
+                showFeedback(feedbackEl, 'error', t('storedXss.enterContent'));
+                return;
+            }
+            
+            postBtn.disabled = true;
+            postBtn.textContent = t('storedXss.posting');
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'post-feedback';
+            
+            try {
+                const response = await fetch('/api/challenge/xss/stored/comment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author, content })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 清空输入
+                    document.getElementById('author-input').value = '';
+                    document.getElementById('content-input').value = '';
+                    
+                    // 重新加载留言列表（触发XSS执行）
+                    await loadComments();
+                    
+                    if (result.flag) {
+                        currentFlag = result.flag;
+                        showFeedback(feedbackEl, 'success', 'XSS Detected! Flag: ' + result.flag);
+                    } else {
+                        showFeedback(feedbackEl, 'success', t('storedXss.postSuccess'));
+                    }
+                } else {
+                    showFeedback(feedbackEl, 'error', result.message || t('storedXss.networkError'));
+                }
+            } catch (error) {
+                showFeedback(feedbackEl, 'error', t('storedXss.networkError'));
+            } finally {
+                postBtn.disabled = false;
+                postBtn.textContent = t('storedXss.postBtn');
+            }
+        }
+
+        // 重置留言板
+        async function handleReset() {
+            const feedbackEl = document.getElementById('post-feedback');
+            try {
+                await fetch('/api/challenge/xss/stored/reset', { method: 'POST' });
+                await loadComments();
+                feedbackEl.textContent = '';
+                feedbackEl.className = 'post-feedback';
+            } catch (error) {
+                console.error('重置失败:', error);
+            }
+        }
+
+        // 处理 Flag 提交
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('storedXss.enterFlag');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'xss', vul_level: 'level2', flag: submittedFlag })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('storedXss.congrats');
+                    await updateChallengeStatus('已完成');
+                    
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'challengeCompleted',
+                            vulnType: 'xss',
+                            level: 'level2'
+                        }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('storedXss.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('storedXss.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

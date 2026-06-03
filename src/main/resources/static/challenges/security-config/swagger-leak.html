@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swagger API Docs Leak</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --color-warning: #f59e0b;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .main-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 700px; margin: 0 auto; }
+        .section-title { color: var(--color-gold); font-size: 1rem; margin-bottom: var(--spacing-sm); padding-bottom: var(--spacing-xs); border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
+
+        .api-list { margin-bottom: var(--spacing-md); }
+        .api-item { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 6px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 4px; }
+        .api-method { padding: 3px 8px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.75rem; font-weight: bold; min-width: 50px; text-align: center; }
+        .api-method.get { background: rgba(34, 197, 94, 0.2); color: var(--color-success); }
+        .api-method.post { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .api-path { font-family: 'Courier New', monospace; font-size: 0.85rem; color: var(--color-text-primary); }
+        .api-desc { font-size: 0.8rem; color: var(--color-text-secondary); margin-left: auto; }
+
+        .custom-request { margin-top: var(--spacing-md); }
+        .request-row { display: flex; gap: 8px; align-items: center; margin-bottom: var(--spacing-sm); }
+        .url-input { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 3px; padding: 0.75rem; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; }
+        .url-input:focus { outline: none; border-color: var(--color-gold); }
+
+        .action-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 3px; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; width: 100%; }
+        .action-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .feedback { margin-top: 0.5rem; padding: 0.5rem; border-radius: 3px; font-size: 0.85rem; min-height: 1.2em; }
+        .feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+
+        .response-display { margin-top: var(--spacing-md); }
+        .response-box { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 4px; padding: var(--spacing-md); min-height: 200px; max-height: 400px; overflow-y: auto; }
+        .response-box pre { margin: 0; font-family: 'Courier New', monospace; font-size: 0.8rem; color: var(--color-text-primary); white-space: pre-wrap; word-break: break-all; }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="swagger.title">API 服务平台</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="swagger.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="swagger.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <h3 class="section-title" data-i18n="swagger.apiTitle">公开 API 接口列表</h3>
+
+            <div class="api-list">
+                <div class="api-item">
+                    <span class="api-method get">GET</span>
+                    <span class="api-path">/api/users</span>
+                    <span class="api-desc" data-i18n="swagger.apiUsers">获取用户列表</span>
+                </div>
+                <div class="api-item">
+                    <span class="api-method get">GET</span>
+                    <span class="api-path">/api/products</span>
+                    <span class="api-desc" data-i18n="swagger.apiProducts">获取产品列表</span>
+                </div>
+                <div class="api-item">
+                    <span class="api-method post">POST</span>
+                    <span class="api-path">/api/orders</span>
+                    <span class="api-desc" data-i18n="swagger.apiOrders">创建订单</span>
+                </div>
+            </div>
+
+            <div class="custom-request">
+                <h3 class="section-title" data-i18n="swagger.requestTitle">自定义请求</h3>
+                <div class="request-row">
+                    <span style="padding: 0.75rem; background: rgba(34, 197, 94, 0.2); color: var(--color-success); border-radius: 3px; font-family: 'Courier New', monospace; font-weight: bold; font-size: 0.85rem;">GET</span>
+                    <input type="text" id="url-input" class="url-input" value="" placeholder="输入 API 路径..." data-i18n-placeholder="swagger.urlPlaceholder" />
+                </div>
+                <button id="send-btn" class="action-btn" data-i18n="swagger.sendBtn">发送请求</button>
+                <div id="feedback" class="feedback"></div>
+            </div>
+
+            <div class="response-display">
+                <div class="response-box">
+                    <pre id="response-content" data-i18n="swagger.waiting">等待请求...</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="swagger.tips">提示</h3>
+            <ul>
+                <li data-i18n="swagger.tip1">这是一个 RESTful API 服务平台</li>
+                <li data-i18n="swagger.tip2">开发者通常使用文档工具（如 Swagger/OpenAPI）来管理 API</li>
+                <li data-i18n="swagger.tip3">API 文档可能暴露内部的隐藏接口</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'swagger.title': 'API 服务平台',
+                'swagger.flagPlaceholder': '输入 Flag...',
+                'swagger.submit': '提交',
+                'swagger.apiTitle': '公开 API 接口列表',
+                'swagger.apiUsers': '获取用户列表',
+                'swagger.apiProducts': '获取产品列表',
+                'swagger.apiOrders': '创建订单',
+                'swagger.requestTitle': '自定义请求',
+                'swagger.urlPlaceholder': '输入 API 路径...',
+                'swagger.sendBtn': '发送请求',
+                'swagger.waiting': '等待请求...',
+                'swagger.tips': '提示',
+                'swagger.tip1': '这是一个 RESTful API 服务平台',
+                'swagger.tip2': '开发者通常使用文档工具（如 Swagger/OpenAPI）来管理 API',
+                'swagger.tip3': 'API 文档可能暴露内部的隐藏接口',
+                'swagger.sending': '请求中...',
+                'swagger.congrats': '恭喜！Swagger 文档泄露关卡完成！',
+                'swagger.enterFlag': '请输入 Flag',
+                'swagger.flagError': 'Flag 不正确',
+                'swagger.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'swagger.title': 'API Service Platform',
+                'swagger.flagPlaceholder': 'Enter Flag...',
+                'swagger.submit': 'Submit',
+                'swagger.apiTitle': 'Public API Endpoint List',
+                'swagger.apiUsers': 'Get user list',
+                'swagger.apiProducts': 'Get product list',
+                'swagger.apiOrders': 'Create order',
+                'swagger.requestTitle': 'Custom Request',
+                'swagger.urlPlaceholder': 'Enter API path...',
+                'swagger.sendBtn': 'Send Request',
+                'swagger.waiting': 'Waiting for request...',
+                'swagger.tips': 'Tips',
+                'swagger.tip1': 'This is a RESTful API service platform',
+                'swagger.tip2': 'Developers often use documentation tools (like Swagger/OpenAPI) to manage APIs',
+                'swagger.tip3': 'API documentation may expose hidden internal endpoints',
+                'swagger.sending': 'Sending...',
+                'swagger.congrats': 'Congratulations! Swagger docs leak challenge completed!',
+                'swagger.enterFlag': 'Please enter Flag',
+                'swagger.flagError': 'Incorrect flag',
+                'swagger.networkError': 'Network error, please try again later'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=security-config&vul_level=level2');
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { console.error('查询关卡状态失败:', error); }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'security-config', vul_level: 'level2', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'security-config', level: 'level2', status: status }, '*');
+                }
+            } catch (error) { console.error('更新关卡状态失败:', error); }
+        }
+
+        function bindEvents() {
+            document.getElementById('send-btn').addEventListener('click', handleSend);
+            document.getElementById('url-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSend(); });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function handleSend() {
+            const url = document.getElementById('url-input').value.trim();
+            const feedbackEl = document.getElementById('feedback');
+            const responseEl = document.getElementById('response-content');
+            const sendBtn = document.getElementById('send-btn');
+
+            if (!url) return;
+
+            sendBtn.disabled = true;
+            sendBtn.textContent = t('swagger.sending');
+            responseEl.textContent = t('swagger.sending');
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'feedback';
+
+            try {
+                const headers = {};
+                const token = localStorage.getItem('token');
+                if (token) headers['Authorization'] = token;
+                const response = await fetch(url, { headers });
+                const result = await response.json();
+                responseEl.textContent = JSON.stringify(result, null, 2);
+
+                if (result.flag) {
+                    feedbackEl.className = 'feedback success';
+                    feedbackEl.textContent = 'Hidden Endpoint Found! Flag: ' + result.flag;
+                }
+            } catch (error) {
+                responseEl.textContent = t('swagger.networkError');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = t('swagger.sendBtn');
+            }
+        }
+
+        async function handleSubmitFlag() {
+            const flag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            if (!flag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('swagger.enterFlag');
+                return;
+            }
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'security-config', vul_level: 'level2', flag: flag })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('swagger.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'security-config', level: 'level2' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('swagger.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('swagger.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

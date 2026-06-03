@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - MadRabbit</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ====================================
+           CSS Variables & Reset
+           ==================================== */
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-bg-deep: #050505;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-bronze: #cd7f32;
+            
+            --font-display: "Georgia", "Times New Roman", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--color-bg-dark);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ====================================
+           Background Effects
+           ==================================== */
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(205, 127, 50, 0.06) 0%, transparent 50%);
+            z-index: 0;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            opacity: 0.4;
+        }
+
+        .decor-line {
+            position: fixed;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+            height: 1px;
+            width: 300px;
+            z-index: 0;
+        }
+
+        .decor-line.top {
+            top: 20%;
+            left: -10%;
+        }
+
+        .decor-line.bottom {
+            bottom: 20%;
+            right: -10%;
+        }
+
+        /* ====================================
+           Navigation Bar
+           ==================================== */
+        .navbar {
+            position: relative;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            padding: var(--spacing-md) var(--spacing-xl);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .brand-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        /* User Dropdown */
+        .user-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 207, 87, 0.05));
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        
+        .user-info:hover {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(244, 207, 87, 0.1));
+            border-color: rgba(212, 175, 55, 0.4);
+            box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+        }
+        
+        .user-info i {
+            font-size: 18px;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .user-info span {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-gold);
+            letter-spacing: 0.02em;
+        }
+        
+        .dropdown-arrow {
+            font-size: 12px;
+            transition: transform 0.3s ease;
+            color: var(--color-gold-dark);
+        }
+        
+        .user-dropdown.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            min-width: 180px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .user-dropdown.active .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-text-primary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            font-size: 14px;
+            text-align: left;
+        }
+        
+        .dropdown-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .dropdown-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(244, 207, 87, 0.08));
+            color: var(--color-gold-light);
+        }
+        
+        .dropdown-item i {
+            width: 18px;
+            text-align: center;
+            color: var(--color-gold);
+        }
+        
+        .user-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(244, 207, 87, 0.15));
+            color: var(--color-gold-light);
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: 500;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            letter-spacing: 0.03em;
+        }
+
+        /* ====================================
+           Main Container
+           ==================================== */
+        .main-container {
+            position: relative;
+            z-index: 1;
+            max-width: clamp(500px, 95vw, 1200px);
+            margin: var(--spacing-xl) auto;
+            padding: 0 var(--spacing-lg);
+            animation: fadeInUp 1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ====================================
+           Page Header
+           ==================================== */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+            padding: var(--spacing-lg);
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 2px;
+        }
+
+        .page-header h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            margin-bottom: var(--spacing-sm);
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            color: var(--color-text-secondary);
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* ====================================
+           Action Bar
+           ==================================== */
+        .action-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.4s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* ====================================
+           User Table
+           ==================================== */
+        .user-table-container {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 2px;
+            padding: var(--spacing-lg);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .table th {
+            padding: var(--spacing-sm);
+            text-align: left;
+            font-weight: 600;
+            color: var(--color-gold);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .table td {
+            padding: var(--spacing-sm);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--color-text-primary);
+            font-size: 0.9rem;
+        }
+
+        .table tbody tr {
+            transition: background 0.3s ease;
+        }
+
+        .table tbody tr:hover {
+            background: rgba(212, 175, 55, 0.08);
+        }
+
+        /* ====================================
+           Badges
+           ==================================== */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-admin {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .badge-learner {
+            background: rgba(0, 243, 255, 0.15);
+            color: #00f3ff;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+        }
+
+        .badge-active {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        /* ====================================
+           Action Buttons
+           ==================================== */
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 500;
+        }
+
+        .btn-edit {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-edit:hover {
+            background: rgba(34, 197, 94, 0.3);
+            box-shadow: 0 5px 15px rgba(34, 197, 94, 0.2);
+        }
+
+        .btn-delete {
+            background: rgba(220, 38, 38, 0.2);
+            color: #dc2626;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .btn-delete:hover {
+            background: rgba(220, 38, 38, 0.3);
+            box-shadow: 0 5px 15px rgba(220, 38, 38, 0.2);
+        }
+
+        /* ====================================
+           Modal Styles
+           ==================================== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--color-bg-dark);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 2px;
+            width: 90%;
+            max-width: 500px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: var(--spacing-lg) var(--spacing-xl);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            color: var(--color-text-primary);
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .close {
+            font-size: 24px;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            border: none;
+            background: none;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: var(--color-gold);
+        }
+
+        .modal-body {
+            padding: var(--spacing-xl);
+        }
+
+        .modal-footer {
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+        }
+
+        /* ====================================
+           Form Styles
+           ==================================== */
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            color: var(--color-gold);
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: var(--spacing-sm);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 2px;
+            color: var(--color-text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--color-gold);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--color-text-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-size: 0.8rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--color-text-primary);
+        }
+
+        /* ====================================
+           Loading & Empty States
+           ==================================== */
+        .loading {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
+
+        .spinner {
+            border: 3px solid rgba(212, 175, 55, 0.1);
+            border-top: 3px solid var(--color-gold);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto var(--spacing-md);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ====================================
+           Messages
+           ==================================== */
+        .alert {
+            padding: var(--spacing-sm);
+            border-radius: 2px;
+            margin-bottom: var(--spacing-md);
+            display: none;
+            font-size: 0.85rem;
+        }
+
+        .alert-success {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border-left: 3px solid #22c55e;
+        }
+
+        .alert-danger {
+            background: rgba(220, 38, 38, 0.15);
+            color: #fca5a5;
+            border-left: 3px solid #dc2626;
+        }
+
+        /* ====================================
+           Empty State
+           ==================================== */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xl) var(--spacing-lg);
+            color: var(--color-text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: var(--spacing-md);
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* ====================================
+           Responsive Design
+           ==================================== */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 0 var(--spacing-md);
+            }
+
+            .page-header {
+                padding: var(--spacing-md);
+            }
+
+            .table {
+                font-size: 0.8rem;
+            }
+
+            .btn-sm {
+                padding: 3px 8px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景效果 -->
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+    
+    <!-- 装饰线 -->
+    <div class="decor-line top"></div>
+    <div class="decor-line bottom"></div>
+
+    <!-- 顶部导航栏容器 -->
+    <div id="navbar-container"></div>
+
+    <!-- 主容器 -->
+    <main class="main-container">
+        <!-- 页面标题 -->
+        <header class="page-header">
+            <h1 data-i18n="userManagement.title">用户设置</h1>
+            <p class="page-subtitle" data-i18n="userManagement.subtitle">管理账户信息与权限</p>
+        </header>
+
+        <!-- 操作栏 -->
+        <div class="action-bar">
+            <button class="btn-primary" onclick="showCreateModal()">+ <span data-i18n="userManagement.createUser">Create User</span></button>
+        </div>
+
+        <!-- 用户表格 -->
+        <div class="user-table-container">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p data-i18n="userManagement.loading">Loading user list...</p>
+            </div>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text" data-i18n="userManagement.noData">No user data available</div>
+            </div>
+
+            <table class="table" id="userTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th data-i18n="userManagement.table.id">ID</th>
+                        <th data-i18n="userManagement.table.username">Username</th>
+                        <th data-i18n="userManagement.table.email">Email</th>
+                        <th data-i18n="userManagement.table.role">Role</th>
+                        <th data-i18n="userManagement.table.status">Status</th>
+                        <th data-i18n="userManagement.table.created">Created</th>
+                        <th data-i18n="userManagement.table.actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <!-- 用户数据将通过 JavaScript 动态插入 -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- 创建/编辑用户模态框 -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle" data-i18n="userManagement.modal.createUser">Create User</h3>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalAlert" class="alert"></div>
+                
+                <form id="userForm" onsubmit="event.preventDefault(); saveUser();">
+                    <input type="hidden" id="userId">
+                    
+                    <div class="form-group">
+                        <label for="userUsername"><span data-i18n="userManagement.form.username">Username</span> *</label>
+                        <input 
+                            type="text" 
+                            id="userUsername" 
+                            name="username" 
+                            data-i18n-placeholder="userManagement.form.usernamePlaceholder"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email" data-i18n="userManagement.form.email">Email</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            data-i18n-placeholder="userManagement.form.emailPlaceholder"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password" data-i18n="userManagement.form.password">Password</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            data-i18n-placeholder="userManagement.form.passwordPlaceholder"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role" data-i18n="userManagement.form.role">Role</label>
+                        <select id="role" name="role">
+                            <option value="LEARNER" data-i18n="userManagement.role.learner">Learner</option>
+                            <option value="ADMIN" data-i18n="userManagement.role.admin">Admin</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal()" data-i18n="common.cancel">Cancel</button>
+                <button class="btn-primary" onclick="saveUser()" data-i18n="common.save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script src="/js/component-loader.js"></script>
+    <script>
+        // 通用 i18n 函数已在 head.html 中定义：t(), getLangHeaders(), getCurrentLang(), formatDate()
+
+        // Current user info (populated by checkAuth)
+        let currentUserRole = 'LEARNER';
+        let currentUserId = null;
+
+        // Check login status
+        function checkAuth() {
+            const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+            const user = localStorage.getItem(APP_CONFIG.USER_INFO_KEY);
+
+            if (!token || !user) {
+                window.location.href = 'login.html';
+                return null;
+            }
+
+            try {
+                const parsed = JSON.parse(user);
+                currentUserRole = parsed.role || 'LEARNER';
+                currentUserId = parsed.id || null;
+                return parsed;
+            } catch (error) {
+                console.error('Failed to parse user info:', error);
+                window.location.href = 'login.html';
+                return null;
+            }
+        }
+
+        // Load user list
+        async function loadUsers() {
+            const loadingEl = document.getElementById('loading');
+            const tableEl = document.getElementById('userTable');
+            const emptyStateEl = document.getElementById('emptyState');
+            const tableBodyEl = document.getElementById('userTableBody');
+
+            // Determine API URL based on role
+            let apiUrl;
+            if (currentUserRole === 'ADMIN') {
+                apiUrl = `${API_CONFIG.API_BASE_URL}/users`;
+            } else {
+                // Non-ADMIN: only fetch own info
+                apiUrl = `${API_CONFIG.API_BASE_URL}/users/${currentUserId}`;
+            }
+
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        ...getLangHeaders()
+                    }
+                });
+
+                const data = await response.json();
+                loadingEl.style.display = 'none';
+
+                // Normalize data to array
+                let users = [];
+                if (data.success && data.data) {
+                    if (Array.isArray(data.data)) {
+                        users = data.data;
+                    } else {
+                        users = [data.data];
+                    }
+                }
+
+                if (users.length > 0) {
+                    tableBodyEl.innerHTML = '';
+
+                    users.forEach(user => {
+                        const row = document.createElement('tr');
+                        const roleText = user.role === 'ADMIN' ? t('userManagement.role.admin') : t('userManagement.role.learner');
+                        const statusText = user.status === 'ACTIVE' ? t('userManagement.status.active') : t('userManagement.status.inactive');
+
+                        // Build action buttons based on current user's role
+                        let actionHtml = `<button class="btn-sm btn-edit" onclick="editUser(${user.id})">${t('common.edit')}</button>`;
+                        if (currentUserRole === 'ADMIN') {
+                            actionHtml += `<button class="btn-sm btn-delete" onclick="deleteUser(${user.id}, '${user.username}')">${t('common.delete')}</button>`;
+                        }
+
+                        row.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.email || '-'}</td>
+                            <td>
+                                <span class="badge ${user.role === 'ADMIN' ? 'badge-admin' : 'badge-learner'}">
+                                    ${roleText}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-active">
+                                    ${statusText}
+                                </span>
+                            </td>
+                            <td>${formatDate(user.createTime)}</td>
+                            <td>${actionHtml}</td>
+                        `;
+                        tableBodyEl.appendChild(row);
+                    });
+
+                    tableEl.style.display = 'table';
+                } else {
+                    emptyStateEl.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to load user list:', error);
+                loadingEl.innerHTML = `<p style="color: #dc2626;">${t('userManagement.loadFailed')}</p>`;
+            }
+        }
+
+        // Format date - 使用 head.html 中定义的通用函数
+        // function formatDate 已在 head.html 中定义
+
+        // Show create user modal
+        function showCreateModal() {
+            document.getElementById('modalTitle').textContent = t('userManagement.modal.createUser');
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('password').required = true;
+            document.getElementById('role').disabled = false;
+            document.getElementById('userModal').classList.add('show');
+            hideModalAlert();
+            updatePlaceholders();
+        }
+
+        // Edit user
+        async function editUser(userId) {
+            try {
+                const response = await fetch(`${API_CONFIG.API_BASE_URL}/users/${userId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        ...getLangHeaders()
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const user = data.data;
+                    document.getElementById('modalTitle').textContent = t('userManagement.modal.editUser');
+                    document.getElementById('userId').value = user.id;
+                    document.getElementById('userUsername').value = user.username;
+                    document.getElementById('email').value = user.email || '';
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').required = false;
+                    document.getElementById('role').value = user.role;
+
+                    // Non-ADMIN: disable role select (frontend restriction)
+                    const roleSelect = document.getElementById('role');
+                    if (currentUserRole !== 'ADMIN') {
+                        roleSelect.disabled = true;
+                        roleSelect.title = 'Role modification requires admin privileges';
+                    } else {
+                        roleSelect.disabled = false;
+                        roleSelect.title = '';
+                    }
+
+                    document.getElementById('userModal').classList.add('show');
+                    hideModalAlert();
+                    updatePlaceholders(true);
+                } else {
+                    alert(t('userManagement.getUserFailed') + ': ' + (data.message || t('errors.unknown')));
+                }
+            } catch (error) {
+                console.error('Failed to get user info:', error);
+                alert(t('errors.networkError'));
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('userModal').classList.remove('show');
+        }
+
+        // Save user
+        async function saveUser() {
+            const userId = document.getElementById('userId').value;
+            const usernameInput = document.getElementById('userUsername');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const roleInput = document.getElementById('role');
+            
+            // 获取输入值并去除前后空格（使用可选链防止undefined）
+            const username = usernameInput?.value?.trim() || '';
+            const email = emailInput?.value?.trim() || '';
+            const password = passwordInput?.value || '';
+            const role = roleInput?.value || 'LEARNER';
+
+            if (!username) {
+                showModalAlert('danger', t('userManagement.validation.usernameRequired'));
+                return;
+            }
+
+            if (!userId && !password) {
+                showModalAlert('danger', t('userManagement.validation.passwordRequired'));
+                return;
+            }
+
+            const userData = {
+                username,
+                email,
+                role
+            };
+
+            if (password) {
+                userData.password = password;
+            }
+
+            try {
+                let url, method;
+                
+                if (userId) {
+                    url = `${API_CONFIG.API_BASE_URL}/users/${userId}`;
+                    method = 'PUT';
+                } else {
+                    url = `${API_CONFIG.API_BASE_URL}/users`;
+                    method = 'POST';
+                }
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`,
+                        ...getLangHeaders()
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showModalAlert('success', userId ? t('userManagement.updateSuccess') : t('userManagement.createSuccess'));
+                    setTimeout(() => {
+                        closeModal();
+                        loadUsers();
+                    }, 1000);
+                } else {
+                    showModalAlert('danger', data.message || t('userManagement.operationFailed'));
+                }
+            } catch (error) {
+                console.error('Failed to save user:', error);
+                showModalAlert('danger', t('errors.networkError') + ': ' + error.message);
+            }
+        }
+
+        // Delete user
+        async function deleteUser(userId, username) {
+            if (!confirm(t('userManagement.deleteConfirm', { username: username }))) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_CONFIG.API_BASE_URL}/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`,
+                        ...getLangHeaders()
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(t('userManagement.deleteSuccess'));
+                    loadUsers();
+                } else {
+                    alert(t('userManagement.deleteFailed') + ': ' + (data.message || t('errors.unknown')));
+                }
+            } catch (error) {
+                console.error('Failed to delete user:', error);
+                alert(t('errors.networkError'));
+            }
+        }
+
+        // Show modal alert
+        function showModalAlert(type, message) {
+            const alertEl = document.getElementById('modalAlert');
+            alertEl.className = `alert alert-${type}`;
+            alertEl.textContent = message;
+            alertEl.style.display = 'block';
+        }
+
+        // Hide modal alert
+        function hideModalAlert() {
+            const alertEl = document.getElementById('modalAlert');
+            alertEl.style.display = 'none';
+        }
+        
+        // Update placeholders based on language
+        function updatePlaceholders(isEdit = false) {
+            const usernameInput = document.getElementById('userUsername');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            
+            if (usernameInput) {
+                usernameInput.placeholder = t('userManagement.form.usernamePlaceholder');
+            }
+            if (emailInput) {
+                emailInput.placeholder = t('userManagement.form.emailPlaceholder');
+            }
+            if (passwordInput) {
+                passwordInput.placeholder = isEdit 
+                    ? t('userManagement.form.passwordPlaceholderEdit')
+                    : t('userManagement.form.passwordPlaceholder');
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('userModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Page initialization - loadUsers will be called after component-loader.js initializes
+        // 定义页面初始化回调函数，由 component-loader.js 在组件加载完成后调用
+        window.onPageInit = function() {
+            const currentUser = checkAuth();
+            if (currentUser) {
+                // Hide "Create User" button for non-ADMIN users
+                if (currentUserRole !== 'ADMIN') {
+                    const actionBar = document.querySelector('.action-bar');
+                    if (actionBar) actionBar.style.display = 'none';
+                }
+                loadUsers();
+            }
+        };
+        
+        // 如果组件已经加载完成，立即调用初始化
+        if (window.__componentsLoaded && typeof window.onPageInit === 'function') {
+            window.onPageInit();
+        }
+        
+        // 监听语言切换事件，重新加载用户列表以更新动态内容
+        window.addEventListener('languageChanged', function() {
+            // 更新 placeholder
+            const modal = document.getElementById('userModal');
+            if (modal && modal.classList.contains('show')) {
+                const userId = document.getElementById('userId').value;
+                updatePlaceholders(!!userId);
+            }
+            
+            // 如果表格已显示，重新渲染以更新动态文本
+            const tableEl = document.getElementById('userTable');
+            if (tableEl && tableEl.style.display !== 'none') {
+                loadUsers();
+            }
+        });
+    </script>
+</body>
+</html>

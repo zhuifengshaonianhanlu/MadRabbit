@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.madrabbit.repository.ChallengeUserMapper">
+    
+    <select id="searchByAge" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users WHERE age = ${age}
+    </select>
+    
+    <select id="searchByName" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users WHERE name = '${name}'
+    </select>
+    
+    <select id="searchByNameLike" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users WHERE name LIKE '%${name}%'
+    </select>
+    
+    <select id="searchLogs" resultType="java.util.Map">
+        SELECT * FROM logs_${tableName} LIMIT 20
+    </select>
+    
+    <select id="listUsersOrderBy" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users ORDER BY ${columnName}
+    </select>
+    
+    <!-- ORDER BY注入关卡 - 搜索安全(#{})，排序不安全(${}) -->
+    <select id="searchByNameSafeWithOrder" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users 
+        WHERE name LIKE CONCAT('%', #{name}, '%')
+        ORDER BY ${orderColumn} ${orderDir}
+    </select>
+    
+    <select id="searchByIds" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users WHERE id IN (${ids})
+    </select>
+    
+    <!-- IN条件注入关卡 - 搜索安全(#{})，角色筛选不安全(${}) -->
+    <!-- roles为空时只按姓名搜索（安全），roles有值时加上IN条件（有注入点） -->
+    <select id="searchByNameSafeWithRoles" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users 
+        WHERE name LIKE CONCAT('%', #{name}, '%')
+        <if test="roles != null and roles != ''">
+            AND role IN (${roles})
+        </if>
+    </select>
+    
+    <!-- 盲注关卡 - 字符型盲注 -->
+    <select id="searchByNameBlind" resultType="com.madrabbit.entity.ChallengeUser">
+        SELECT * FROM challenge_users WHERE name = '${name}'
+    </select>
+    
+</mapper>

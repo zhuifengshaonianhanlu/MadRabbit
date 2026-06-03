@@ -1,0 +1,54 @@
+server:
+  port: 8080
+  # tomcat:
+  #   basedir: ./target/tomcat
+
+spring:
+  application:
+    name: madrabbit
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 2MB
+      max-request-size: 5MB
+  # Update to your environment information
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/madrabbit?useSSL=false&serverTimezone=UTC&characterEncoding=utf8
+    username: root
+    password: root@666
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.madrabbit.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    lazy-loading-enabled: false
+    multiple-result-sets-enabled: true
+
+logging:
+  level:
+    com.madrabbit: debug
+    org.springframework: info
+    org.apache: info
+
+# JWT Configuration
+jwt:
+  secret: MadRabbitSecretKey2024ForJWTTokenGenerationAndValidationWithStrongSecurityStandardHS512AlgorithmRequiresMinimum512BitsKeyLengthThisKeySatisfiesThatRequirement
+  expiration: 86400000 # 24 hours in milliseconds
+
+# Actuator Configuration (Security Level 1 – Endpoints Exposed Intentionally for Teaching Purposes)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,env,mappings,beans
+  endpoint:
+    env:
+      show-values: ALWAYS
+    health:
+      show-details: always

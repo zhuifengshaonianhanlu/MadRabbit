@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Tamper</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        
+        .shop-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 700px; margin: 0 auto; }
+        .product-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: var(--spacing-lg); }
+        .product-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border-left: 3px solid var(--color-gold); cursor: pointer; transition: all 0.3s ease; }
+        .product-card:hover { background: rgba(212, 175, 55, 0.1); }
+        .product-card.selected { border-color: var(--color-success); background: rgba(34, 197, 94, 0.1); }
+        .product-info h3 { margin: 0 0 5px 0; color: var(--color-text-primary); font-size: 1rem; }
+        .product-info .price { color: var(--color-gold); font-weight: 600; font-size: 1.1rem; }
+        .product-select-btn { background: transparent; border: 1px solid var(--color-gold); color: var(--color-gold); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+        .product-card.selected .product-select-btn { background: var(--color-success); border-color: var(--color-success); color: white; }
+
+        .order-summary { margin-top: var(--spacing-lg); padding-top: var(--spacing-lg); border-top: 1px solid rgba(212, 175, 55, 0.2); }
+        .order-detail-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .order-detail-row:last-of-type { border-bottom: none; }
+        .order-label { font-size: 0.85rem; color: var(--color-text-secondary); }
+        .order-value { font-size: 0.95rem; color: var(--color-text-primary); font-family: 'Courier New', monospace; }
+        .order-value.price-highlight { color: var(--color-gold); font-weight: 600; font-size: 1.1rem; }
+        .order-total { margin-top: var(--spacing-sm); padding-top: var(--spacing-sm); border-top: 1px solid rgba(212, 175, 55, 0.3); display: flex; justify-content: space-between; align-items: center; }
+        .order-total .order-label { font-size: 1rem; font-weight: 600; color: var(--color-text-primary); }
+        .order-total .order-value { font-size: 1.2rem; color: var(--color-gold); font-weight: 700; }
+        .quantity-control { display: flex; align-items: center; gap: 10px; }
+        .qty-btn { width: 28px; height: 28px; border-radius: 4px; border: 1px solid rgba(212, 175, 55, 0.3); background: rgba(255, 255, 255, 0.05); color: var(--color-gold); cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
+        .qty-btn:hover { background: rgba(212, 175, 55, 0.15); }
+        .qty-display { font-family: 'Courier New', monospace; font-size: 1rem; min-width: 20px; text-align: center; }
+        .order-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 12px 24px; font-weight: 600; cursor: pointer; font-size: 0.95rem; letter-spacing: 0.5px; width: 100%; margin-top: var(--spacing-md); }
+        .order-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .order-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .order-empty { text-align: center; padding: var(--spacing-lg); color: var(--color-text-secondary); font-size: 0.9rem; }
+
+        .feedback { margin-top: var(--spacing-md); padding: var(--spacing-sm); border-radius: 4px; font-size: 0.9rem; text-align: center; min-height: 1.5em; }
+        .feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+        @media (max-width: 768px) { .flag-input-inline { width: 140px; } }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="priceTamper.title">在线商城</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="priceTamper.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="priceTamper.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="shop-container">
+            <h2 style="color: var(--color-gold); margin-bottom: var(--spacing-md);" data-i18n="priceTamper.selectProduct">商品列表</h2>
+            <div id="product-list" class="product-list"></div>
+            
+            <div class="order-summary">
+                <h3 style="color: var(--color-text-primary); margin-bottom: var(--spacing-md);" data-i18n="priceTamper.orderDetails">订单详情</h3>
+                <div id="order-info">
+                    <div class="order-empty" data-i18n="priceTamper.selectFirst">请先选择商品</div>
+                </div>
+            </div>
+            <div id="feedback" class="feedback"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="priceTamper.tips">提示</h3>
+            <ul>
+                <li data-i18n="priceTamper.tip1">页面显示的内容和实际提交的数据一定一致吗？</li>
+                <li data-i18n="priceTamper.tip2">试试用浏览器开发者工具观察下单时发送的请求</li>
+                <li data-i18n="priceTamper.tip3">客户端提交的数据，服务端都做了校验吗？</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let products = [];
+        let selectedProduct = null;
+        let quantity = 1;
+
+        const i18n = {
+            'zh-CN': {
+                'priceTamper.title': '在线商城',
+                'priceTamper.flagPlaceholder': '输入 Flag...',
+                'priceTamper.submit': '提交',
+                'priceTamper.selectProduct': '商品列表',
+                'priceTamper.orderDetails': '订单详情',
+                'priceTamper.productName': '商品名称',
+                'priceTamper.unitPrice': '单价',
+                'priceTamper.quantity': '数量',
+                'priceTamper.total': '合计',
+                'priceTamper.placeOrder': '确认支付',
+                'priceTamper.tips': '提示',
+                'priceTamper.tip1': '页面显示的内容和实际提交的数据一定一致吗？',
+                'priceTamper.tip2': '试试用浏览器开发者工具观察下单时发送的请求',
+                'priceTamper.tip3': '客户端提交的数据，服务端都做了校验吗？',
+                'priceTamper.selectFirst': '请先选择商品',
+                'priceTamper.congrats': '恭喜！价格篡改关卡完成！',
+                'priceTamper.enterFlag': '请输入 Flag',
+                'priceTamper.flagError': 'Flag 不正确',
+                'priceTamper.networkError': '网络错误，请稍后再试',
+                'priceTamper.orderSuccess': '下单成功！订单号：',
+                'priceTamper.select': '选择',
+                'priceTamper.selected': '已选'
+            },
+            'en-US': {
+                'priceTamper.title': 'Online Store',
+                'priceTamper.flagPlaceholder': 'Enter Flag...',
+                'priceTamper.submit': 'Submit',
+                'priceTamper.selectProduct': 'Products',
+                'priceTamper.orderDetails': 'Order Details',
+                'priceTamper.productName': 'Product',
+                'priceTamper.unitPrice': 'Unit Price',
+                'priceTamper.quantity': 'Quantity',
+                'priceTamper.total': 'Total',
+                'priceTamper.placeOrder': 'Confirm Payment',
+                'priceTamper.tips': 'Tips',
+                'priceTamper.tip1': 'Is what you see on the page always what gets submitted?',
+                'priceTamper.tip2': 'Try using browser DevTools to observe the request when placing an order',
+                'priceTamper.tip3': 'Does the server validate everything the client sends?',
+                'priceTamper.selectFirst': 'Please select a product first',
+                'priceTamper.congrats': 'Congratulations! Price Tamper challenge completed!',
+                'priceTamper.enterFlag': 'Please enter Flag',
+                'priceTamper.flagError': 'Incorrect flag',
+                'priceTamper.networkError': 'Network error, please try again later',
+                'priceTamper.orderSuccess': 'Order placed! Order ID: ',
+                'priceTamper.select': 'Select',
+                'priceTamper.selected': 'Selected'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+        function showFeedback(type, message) { const el = document.getElementById('feedback'); el.className = 'feedback ' + type; el.textContent = message; }
+
+        async function init() {
+            await loadProducts();
+            bindEvents();
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+            renderProducts();
+            renderOrderInfo();
+        }
+
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/challenge/biz-logic/price/products');
+                const result = await response.json();
+                if (result.success) products = result.products;
+                renderProducts();
+            } catch (error) { console.error('Failed to load products:', error); }
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('product-list');
+            container.innerHTML = products.map(p => `
+                <div class="product-card ${selectedProduct && selectedProduct.id === p.id ? 'selected' : ''}" data-id="${p.id}">
+                    <div class="product-info">
+                        <h3>${p.name}</h3>
+                        <span class="price">$${p.price.toFixed(2)}</span>
+                    </div>
+                    <button class="product-select-btn">${selectedProduct && selectedProduct.id === p.id ? t('priceTamper.selected') : t('priceTamper.select')}</button>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.product-card').forEach(card => {
+                card.addEventListener('click', () => selectProduct(parseInt(card.dataset.id)));
+            });
+        }
+
+        function selectProduct(id) {
+            selectedProduct = products.find(p => p.id === id);
+            quantity = 1;
+            renderProducts();
+            renderOrderInfo();
+        }
+
+        function renderOrderInfo() {
+            const container = document.getElementById('order-info');
+            if (!selectedProduct) {
+                container.innerHTML = `<div class="order-empty">${t('priceTamper.selectFirst')}</div>`;
+                return;
+            }
+            const total = (selectedProduct.price * quantity).toFixed(2);
+            container.innerHTML = `
+                <div class="order-detail-row">
+                    <span class="order-label">${t('priceTamper.productName')}</span>
+                    <span class="order-value">${selectedProduct.name}</span>
+                </div>
+                <div class="order-detail-row">
+                    <span class="order-label">${t('priceTamper.unitPrice')}</span>
+                    <span class="order-value price-highlight">$${selectedProduct.price.toFixed(2)}</span>
+                </div>
+                <div class="order-detail-row">
+                    <span class="order-label">${t('priceTamper.quantity')}</span>
+                    <div class="quantity-control">
+                        <button class="qty-btn" id="qty-minus">-</button>
+                        <span class="qty-display">${quantity}</span>
+                        <button class="qty-btn" id="qty-plus">+</button>
+                    </div>
+                </div>
+                <div class="order-total">
+                    <span class="order-label">${t('priceTamper.total')}</span>
+                    <span class="order-value">$${total}</span>
+                </div>
+                <button id="order-btn" class="order-btn">${t('priceTamper.placeOrder')}</button>
+            `;
+            document.getElementById('qty-minus').addEventListener('click', () => { if (quantity > 1) { quantity--; renderOrderInfo(); } });
+            document.getElementById('qty-plus').addEventListener('click', () => { quantity++; renderOrderInfo(); });
+            document.getElementById('order-btn').addEventListener('click', handleOrder);
+        }
+
+        function bindEvents() {
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function handleOrder() {
+            if (!selectedProduct) { showFeedback('error', t('priceTamper.selectFirst')); return; }
+
+            const btn = document.getElementById('order-btn');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/challenge/biz-logic/price/order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        productId: selectedProduct.id,
+                        productName: selectedProduct.name,
+                        price: selectedProduct.price,
+                        quantity: quantity
+                    })
+                });
+                const result = await response.json();
+
+                if (result.flag) {
+                    showFeedback('success', result.message + (result.flag ? ' Flag: ' + result.flag : ''));
+                } else {
+                    showFeedback('success', t('priceTamper.orderSuccess') + result.orderId);
+                }
+            } catch (error) { showFeedback('error', t('priceTamper.networkError')); }
+            finally { btn.disabled = false; }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('priceTamper.enterFlag'); return; }
+
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'business-logic', vul_level: 'level1', flag: submittedFlag })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('priceTamper.congrats');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'business-logic', level: 'level1' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('priceTamper.flagError');
+                }
+            } catch (error) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('priceTamper.networkError'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

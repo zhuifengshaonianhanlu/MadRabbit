@@ -1,0 +1,37 @@
+<!-- 底部装饰组件 -->
+<style>
+    /* 底部样式 */
+    .page-footer {
+        text-align: center;
+        padding: var(--spacing-xl) 0;
+        border-top: 1px solid rgba(212, 175, 55, 0.1);
+        color: var(--color-text-secondary);
+        margin-top: var(--spacing-xl);
+    }
+
+    .tech-lines {
+        display: flex;
+        justify-content: center;
+        gap: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .tech-line {
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+    }
+
+    .page-footer p {
+        color: var(--color-text-secondary);
+        font-size: 0.9rem;
+    }
+</style>
+<footer class="page-footer">
+    <div class="tech-lines">
+        <div class="tech-line"></div>
+        <div class="tech-line"></div>
+        <div class="tech-line"></div>
+    </div>
+    <p>&copy; MadRabbit web-VulnHub Platform</p>
+</footer>

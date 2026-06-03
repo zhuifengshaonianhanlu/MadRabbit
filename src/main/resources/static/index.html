@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Madrabbit</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        /* ====================================
+           CSS Variables & Reset
+           ==================================== */
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-bg-deep: #050505;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-bronze: #cd7f32;
+            
+            --font-display: "Georgia", "Times New Roman", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+
+        /* 使用系统字体替代 Google Fonts */
+        @font-face {
+            font-family: 'Orbitron';
+            src: local('Arial Black'), local('Impact'), local('sans-serif');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'Orbitron';
+            src: local('Arial Black'), local('Impact'), local('sans-serif');
+            font-weight: 700;
+        }
+        @font-face {
+            font-family: 'Rajdhani';
+            src: local('Segoe UI'), local('Tahoma'), local('sans-serif');
+            font-weight: 400;
+        }
+        
+        /* 用户下拉菜单样式 */
+        .user-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 207, 87, 0.05));
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        
+        .user-info:hover {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(244, 207, 87, 0.1));
+            border-color: rgba(212, 175, 55, 0.4);
+            box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+        }
+        
+        .user-info i {
+            font-size: 18px;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .user-info span {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-gold);
+            letter-spacing: 0.02em;
+        }
+        
+        .dropdown-arrow {
+            font-size: 12px;
+            transition: transform 0.3s ease;
+            color: var(--color-gold-dark);
+        }
+        
+        .user-dropdown.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            min-width: 180px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .user-dropdown.active .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-text-primary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            font-size: 14px;
+            text-align: left;
+        }
+        
+        .dropdown-item:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .dropdown-item:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(244, 207, 87, 0.08));
+            color: var(--color-gold-light);
+        }
+        
+        .dropdown-item i {
+            width: 18px;
+            text-align: center;
+            color: var(--color-gold);
+        }
+        
+        .dropdown-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+            margin: 4px 0;
+        }
+        
+        .user-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(244, 207, 87, 0.15));
+            color: var(--color-gold-light);
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: 500;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            letter-spacing: 0.03em;
+        }
+
+        /* ====================================
+           Navigation Bar
+           ==================================== */
+        .navbar {
+            position: relative;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            padding: var(--spacing-md) var(--spacing-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .brand-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        /* ====================================
+           Main Container
+           ==================================== */
+        .main-container {
+            position: relative;
+            z-index: 1;
+            max-width: clamp(800px, 98vw, 1800px);
+            margin: var(--spacing-xl) auto;
+            padding: 0 var(--spacing-sm);
+            animation: fadeInUp 1s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ====================================
+           Page Header
+           ==================================== */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+            padding: var(--spacing-md) 0;
+        }
+
+        .page-header h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            margin-bottom: var(--spacing-sm);
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            color: var(--color-text-secondary);
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        /* ====================================
+           Vulnerability Cards Grid
+           ==================================== */
+        .vuln-types-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .vuln-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 2px;
+            padding: var(--spacing-lg);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .vuln-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(212, 175, 55, 0.3);
+            box-shadow: 0 15px 40px rgba(212, 175, 55, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 特定卡片样式的增强 - 所有颜色类型 */
+        .vuln-card[data-color="cyan"] .card-icon {
+            background: linear-gradient(135deg, #06b6d4, #0891b2) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="pink"] .card-icon {
+            background: linear-gradient(135deg, #ec4899, #db2777) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="purple"] .card-icon {
+            background: linear-gradient(135deg, #a855f7, #9333ea) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="orange"] .card-icon {
+            background: linear-gradient(135deg, #f97316, #ea580c) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="green"] .card-icon {
+            background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="red"] .card-icon {
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="blue"] .card-icon {
+            background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="yellow"] .card-icon {
+            background: linear-gradient(135deg, #eab308, #ca8a04) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="indigo"] .card-icon {
+            background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="teal"] .card-icon {
+            background: linear-gradient(135deg, #14b8a6, #0d9488) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="lime"] .card-icon {
+            background: linear-gradient(135deg, #84cc16, #65a30d) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+        
+        .vuln-card[data-color="amber"] .card-icon {
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            background-clip: text !important;
+        }
+
+        /* 特定卡片按钮悬停效果 - 根据颜色类型设置不同悬停背景 */
+        .vuln-card[data-color="cyan"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #06b6d4, #0891b2) !important; /* 青色 */
+        }
+        
+        .vuln-card[data-color="pink"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #ec4899, #db2777) !important; /* 粉色 */
+        }
+        
+        .vuln-card[data-color="purple"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #a855f7, #9333ea) !important; /* 紫色 */
+        }
+        
+        .vuln-card[data-color="orange"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #f97316, #ea580c) !important; /* 橙色 */
+        }
+        
+        .vuln-card[data-color="green"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #22c55e, #16a34a) !important; /* 绿色 */
+        }
+        
+        .vuln-card[data-color="red"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important; /* 红色 */
+        }
+        
+        .vuln-card[data-color="blue"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #3b82f6, #2563eb) !important; /* 蓝色 */
+        }
+        
+        .vuln-card[data-color="yellow"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #eab308, #ca8a04) !important; /* 黄色 */
+        }
+        
+        .vuln-card[data-color="indigo"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #6366f1, #4f46e5) !important; /* 靛蓝色 */
+        }
+        
+        .vuln-card[data-color="teal"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #14b8a6, #0d9488) !important; /* 青绿色 */
+        }
+        
+        .vuln-card[data-color="lime"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #84cc16, #65a30d) !important; /* 酸橙色 */
+        }
+        
+        .vuln-card[data-color="amber"] .enter-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3) !important;
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important; /* 琥珀色 */
+        }
+
+        /* 通用图标样式 - 作为后备 */
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: var(--spacing-md);
+            flex-shrink: 0;
+        }
+
+        .card-title {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 2vw, 1.3rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            margin-bottom: var(--spacing-sm);
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            flex-shrink: 0;
+        }
+
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+            margin-bottom: var(--spacing-md);
+            flex: 1;
+        }
+
+        .card-stats {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            padding: var(--spacing-sm);
+            background: rgba(212, 175, 55, 0.05);
+            border-radius: 4px;
+            flex-shrink: 0;
+            border-left: 3px solid var(--color-gold); /* 默认金色边框 */
+        }
+
+        /* 根据漏洞类型设置不同的 card-stats 左边框颜色 */
+        .vuln-card[data-color="cyan"] .card-stats {
+            border-left-color: #06b6d4 !important; /* 青色 */
+        }
+        
+        .vuln-card[data-color="pink"] .card-stats {
+            border-left-color: #ec4899 !important; /* 粉色 */
+        }
+        
+        .vuln-card[data-color="purple"] .card-stats {
+            border-left-color: #a855f7 !important; /* 紫色 */
+        }
+        
+        .vuln-card[data-color="orange"] .card-stats {
+            border-left-color: #f97316 !important; /* 橙色 */
+        }
+        
+        .vuln-card[data-color="green"] .card-stats {
+            border-left-color: #22c55e !important; /* 绿色 */
+        }
+        
+        .vuln-card[data-color="red"] .card-stats {
+            border-left-color: #ef4444 !important; /* 红色 */
+        }
+        
+        .vuln-card[data-color="blue"] .card-stats {
+            border-left-color: #3b82f6 !important; /* 蓝色 */
+        }
+        
+        .vuln-card[data-color="yellow"] .card-stats {
+            border-left-color: #eab308 !important; /* 黄色 */
+        }
+        
+        .vuln-card[data-color="indigo"] .card-stats {
+            border-left-color: #6366f1 !important; /* 靛蓝色 */
+        }
+        
+        .vuln-card[data-color="teal"] .card-stats {
+            border-left-color: #14b8a6 !important; /* 青绿色 */
+        }
+        
+        .vuln-card[data-color="lime"] .card-stats {
+            border-left-color: #84cc16 !important; /* 酸橙色 */
+        }
+        
+        .vuln-card[data-color="amber"] .card-stats {
+            border-left-color: #f59e0b !important; /* 琥珀色 */
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1rem;
+            color: var(--color-gold);
+            font-weight: 600;
+        }
+
+        .difficulty-easy {
+            color: #22c55e;
+        }
+
+        .difficulty-medium {
+            color: #ff9500;
+        }
+
+        .difficulty-hard {
+            color: #ff2a2a;
+        }
+
+        .difficulty-expert {
+            color: #bc13fe;
+        }
+
+        .enter-btn {
+            width: 100%;
+            padding: var(--spacing-sm);
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.4s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-xs);
+            flex-shrink: 0;
+        }
+
+        .enter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+        }
+
+        /* ====================================
+           Footer
+           ==================================== */
+        .page-footer {
+            text-align: center;
+            padding: var(--spacing-xl) 0;
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+            color: var(--color-text-secondary);
+        }
+
+        .tech-lines {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .tech-line {
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+        }
+
+        /* ====================================
+           Responsive Design
+           ==================================== */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 0 var(--spacing-md);
+            }
+
+            .page-header {
+                padding: var(--spacing-md);
+            }
+
+            .vuln-types-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .vuln-card {
+                padding: var(--spacing-md);
+            }
+            
+            .card-content {
+                min-height: 280px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- 背景效果 -->
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+    
+    <!-- 装饰线 -->
+    <div class="decor-line top"></div>
+    <div class="decor-line bottom"></div>
+
+    <!-- 顶部导航栏容器 -->
+    <div id="navbar-container"></div>
+
+    <!-- 主容器 -->
+    <main class="main-container">
+        <!-- 页面标题 -->
+        <header class="page-header">
+            <h1 data-i18n="dashboard.welcome">Welcome to MadRabbit's Amusement Park</h1>
+            <p class="page-subtitle" data-i18n="dashboard.subtitle">Select Vulnerability Type · Start Your Penetration Journey</p>
+        </header>
+
+        <!-- 漏洞类型卡片网格 -->
+        <section class="vuln-types-grid">
+            <!-- 认证与会话安全 -->
+            <div class="vuln-card" data-type="auth-session" data-color="cyan">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.authSession">认证与会话安全</h2>
+                    <p class="card-desc" data-i18n="vulnType.authSessionDesc">
+                        暴力破解、认证绕过、会话管理缺陷等攻击手段，旨在突破系统的身份验证机制
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/auth-session/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 跨站脚本 -->
+            <div class="vuln-card" data-type="xss" data-color="pink">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.xss">跨站脚本</h2>
+                    <p class="card-desc" data-i18n="vulnType.xssDesc">
+                        利用网站对用户输入过滤不足，在网页中注入恶意脚本代码，窃取用户信息或进行其他攻击
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/xss/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- SQL注入 -->
+            <div class="vuln-card" data-type="injection" data-color="purple">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.injection">SQL注入</h2>
+                    <p class="card-desc" data-i18n="vulnType.injectionDesc">
+                        通过在SQL查询语句中插入恶意数据，欺骗数据库执行非授权的操作，窃取、篡改或删除数据
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/injection/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- XXE外部实体注入 -->
+            <div class="vuln-card" data-type="xxe" data-color="teal">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-file-code"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.xxe">XXE外部实体注入</h2>
+                    <p class="card-desc" data-i18n="vulnType.xxeDesc">
+                        利用XML解析器处理外部实体的特性，读取服务器文件、发起内网请求或造成拒绝服务
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/xxe/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 跨站请求伪造 -->
+            <div class="vuln-card" data-type="csrf" data-color="orange">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.csrf">跨站请求伪造</h2>
+                    <p class="card-desc" data-i18n="vulnType.csrfDesc">
+                        诱骗用户在已认证的网站上执行非预期操作，利用用户的身份和权限进行未授权的请求
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/csrf/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 服务器端请求伪造 -->
+            <div class="vuln-card" data-type="ssrf" data-color="green">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.ssrf">服务器端请求伪造</h2>
+                    <p class="card-desc" data-i18n="vulnType.ssrfDesc">
+                        诱导服务器代表应用程序发起非预期的 HTTP 请求，用于访问内网资源或探测网络拓扑
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/ssrf/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 远程命令执行 -->
+            <div class="vuln-card" data-type="rce" data-color="red">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-terminal"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.rce">远程命令执行</h2>
+                    <p class="card-desc" data-i18n="vulnType.rceDesc">
+                        攻击者能够在目标系统上执行任意系统命令，获取服务器控制权，造成严重的安全威胁
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/rce/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 失效的访问控制 -->
+            <div class="vuln-card" data-type="access-control" data-color="blue">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-lock-open"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.accessControl">失效的访问控制</h2>
+                    <p class="card-desc" data-i18n="vulnType.accessControlDesc">
+                        未能正确限制用户对资源的访问权限，导致越权访问、水平或垂直权限提升等问题
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/access-control/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 文件操作 -->
+            <div class="vuln-card" data-type="file-operation" data-color="yellow">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.fileOperation">文件操作</h2>
+                    <p class="card-desc" data-i18n="vulnType.fileOperationDesc">
+                        文件上传、下载、包含等操作中的安全漏洞，可能导致恶意文件执行或敏感文件泄露
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/file-operation/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 安全配置 -->
+            <div class="vuln-card" data-type="security-config" data-color="indigo">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.securityConfig">安全配置</h2>
+                    <p class="card-desc" data-i18n="vulnType.securityConfigDesc">
+                        由于系统、框架或组件的安全配置不当或缺失，导致默认账户、调试信息暴露等风险
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/security-config/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 敏感信息泄露 -->
+            <div class="vuln-card" data-type="info-leak" data-color="teal">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-eye-slash"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.infoLeak">敏感信息泄露</h2>
+                    <p class="card-desc" data-i18n="vulnType.infoLeakDesc">
+                        未妥善保护敏感数据，如密码、密钥、个人信息等，导致数据被未授权访问或窃取
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/info-leak/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 业务逻辑错误 -->
+            <div class="vuln-card" data-type="business-logic" data-color="lime">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.businessLogic">业务逻辑错误</h2>
+                    <p class="card-desc" data-i18n="vulnType.businessLogicDesc">
+                        应用程序业务流程设计或实现中的缺陷，可被利用绕过正常流程或获取非法利益
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/business-logic/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <!-- 不安全的反序列化 -->
+            <div class="vuln-card" data-type="deserialization" data-color="amber">
+                <div class="card-content">
+                    <div class="card-icon">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <h2 class="card-title" data-i18n="vulnType.deserialization">不安全的反序列化</h2>
+                    <p class="card-desc" data-i18n="vulnType.deserializationDesc">
+                        反序列化过程中缺乏充分验证，导致攻击者可构造恶意数据执行任意代码或篡改对象
+                    </p>
+                    <div class="card-stats">
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.levels">关卡数</span>
+                            <span class="stat-value">5</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label" data-i18n="dashboard.progress">进度</span>
+                            <span class="stat-value difficulty-easy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="enter-btn" onclick="window.location.href='/challenges/deserialization/vul-index.html'">
+                    <span data-i18n="dashboard.startExplore">开始探索</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- 底部装饰 -->
+        <div id="footer-container"></div>
+    </main>
+
+    <!-- 粒子效果容器 -->
+    <div id="particles"></div>
+
+    <!-- 引入配置文件 -->
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script src="/js/component-loader.js"></script>
+    <script src="/js/vuln-types.js"></script>
+    <script>
+        // 页面加载时检查登录状态
+        (function checkAuth() {
+            const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+            if (!token) {
+                // 未登录，重定向到登录页面
+                window.location.href = '/login.html';
+            }
+        })();
+    </script>
+    
+    <!-- 动态获取漏洞类型关卡数和进度 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                initVulnProgress();
+            }, 500);
+        });
+        
+        function initVulnProgress() {
+            const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+            if (!token) {
+                return;
+            }
+            
+            // 单次请求获取所有漏洞类型的进度
+            fetch(`${API_CONFIG.API_BASE_URL}/challenge/progress_all`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(result => {
+                if (result.success && result.data) {
+                    result.data.forEach(item => {
+                        updateCardDisplay(item.vulType, item);
+                    });
+                }
+            })
+            .catch(err => {
+                console.error('获取进度失败:', err);
+            });
+        }
+        
+        function updateCardDisplay(vulnType, data) {
+            const card = document.querySelector(`[data-type="${vulnType}"]`);
+            if (!card) return;
+            
+            const statValues = card.querySelectorAll('.stat-value');
+            if (statValues.length < 2) return;
+            
+            // 更新关卡数
+            statValues[0].textContent = data.totalCount;
+            
+            // 更新进度百分比
+            const progressPercent = data.progressPercent || 0;
+            statValues[1].textContent = `${progressPercent}%`;
+            
+            // 根据进度设置样式类
+            statValues[1].className = 'stat-value ' + getDifficultyClass(progressPercent);
+        }
+        
+        function getDifficultyClass(percent) {
+            if (percent <= 25) return 'difficulty-easy';
+            if (percent <= 50) return 'difficulty-medium';
+            if (percent <= 75) return 'difficulty-hard';
+            return 'difficulty-expert';
+        }
+    </script>
+</body>
+</html>

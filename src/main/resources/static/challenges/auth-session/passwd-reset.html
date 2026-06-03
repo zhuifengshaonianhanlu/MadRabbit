@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Reset Everyone</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: var(--spacing-lg); 
+            background: transparent; 
+            color: var(--color-text-primary); 
+            font-family: var(--font-body); 
+            min-height: 100vh;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--spacing-md);
+            padding-bottom: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid transparent;
+            background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat;
+        }
+        .level2-content h1 { 
+            font-family: var(--font-display); 
+            font-size: clamp(1rem, 3vw, 1.8rem); 
+            font-weight: 600; 
+            color: var(--color-gold); 
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .flag-submit-form { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-shrink: 0;
+        }
+        .flag-input-inline { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 4px; 
+            padding: 8px 12px; 
+            color: var(--color-text-primary); 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+            width: 180px; 
+        }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 4px; 
+            padding: 8px 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+        }
+        .flag-submit-btn-small:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        .login-form-container { 
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 6px; 
+            padding: 1.5rem; 
+            max-width: 360px; 
+            margin: 0 auto;
+        }
+        .login-form { display: flex; flex-direction: column; gap: 0.75rem; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 0.75rem; font-weight: 600; color: var(--color-gold); letter-spacing: 1px; }
+        .form-input { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 3px; 
+            padding: 0.5rem 0.75rem; 
+            color: var(--color-text-primary); 
+            font-size: 0.9rem; 
+        }
+        .form-input:focus { outline: none; border-color: var(--color-gold); }
+        .login-btn { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 3px; 
+            padding: 0.5rem 1rem; 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            margin-top: 0.5rem; 
+            letter-spacing: 1px;
+        }
+        .login-btn:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .login-feedback { 
+            margin-top: 0.5rem; 
+            padding: 0.5rem; 
+            border-radius: 3px; 
+            font-size: 0.8rem; 
+            text-align: center; 
+            min-height: 1.2em; 
+        }
+        .login-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .login-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        .forgot-password-link { 
+            color: var(--color-gold); 
+            text-decoration: none; 
+            font-size: 0.85rem; 
+            cursor: pointer; 
+            margin-top: 0.5rem; 
+            text-align: center; 
+            display: block;
+        }
+        .forgot-password-link:hover { text-decoration: underline; }
+        .reset-password-form { display: none; flex-direction: column; gap: 0.75rem; }
+        .reset-password-form.active { display: flex; }
+        .captcha-row { display: flex; gap: 8px; align-items: center; }
+        .captcha-display { 
+            background: rgba(212, 175, 55, 0.1); 
+            border: 1px solid #d4af37; 
+            padding: 8px 12px; 
+            border-radius: 4px; 
+            font-family: 'Courier New', monospace; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            letter-spacing: 3px; 
+            cursor: pointer; 
+            user-select: none; 
+            min-width: 80px; 
+            text-align: center; 
+            color: var(--color-gold);
+        }
+        .get-captcha-btn { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 3px; 
+            padding: 0.5rem 1rem; 
+            font-size: 0.85rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+        .get-captcha-btn:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .get-captcha-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .email-sent-message { 
+            margin-top: 0.5rem; 
+            padding: 0.5rem; 
+            border-radius: 3px; 
+            font-size: 0.8rem; 
+            background: rgba(212, 175, 55, 0.15); 
+            color: var(--color-gold); 
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            display: none;
+        }
+        .email-sent-message.show { display: block; }
+        .back-to-login-link { 
+            color: var(--color-gold); 
+            text-decoration: none; 
+            font-size: 0.85rem; 
+            cursor: pointer; 
+            margin-top: 0.5rem; 
+            text-align: center; 
+            display: block;
+        }
+        .back-to-login-link:hover { text-decoration: underline; }
+        .tips-box { 
+            margin-top: var(--spacing-xl); 
+            padding: var(--spacing-md); 
+            background: rgba(212, 175, 55, 0.05); 
+            border-left: 3px solid var(--color-gold); 
+            border-radius: 4px; 
+        }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        @media (max-width: 768px) {
+            .flag-input-inline { width: 140px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="level2-content">
+        <!-- 头部区域 -->
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="pwreset.title">任意密码重置</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="pwreset.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="pwreset.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <!-- 登录表单 -->
+        <div class="login-form-container">
+            <!-- 登录表单 -->
+            <div id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="login-username">USERNAME</label>
+                    <input type="text" id="login-username" class="form-input" data-i18n-placeholder="pwreset.usernamePlaceholder" placeholder="请输入用户名" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="login-password">PASSWORD</label>
+                    <input type="password" id="login-password" class="form-input" data-i18n-placeholder="pwreset.passwordPlaceholder" placeholder="请输入密码" autocomplete="off" />
+                </div>
+                <button id="login-btn" class="login-btn" data-i18n="pwreset.login">Login</button>
+                <div id="login-feedback" class="login-feedback"></div>
+                <a id="forgot-password-link" class="forgot-password-link" data-i18n="pwreset.forgotPassword">忘记密码？</a>
+            </div>
+
+            <!-- 重置密码表单 -->
+            <div id="reset-password-form" class="reset-password-form">
+                <div class="form-group">
+                    <label for="reset-username">USERNAME</label>
+                    <input type="text" id="reset-username" class="form-input" data-i18n-placeholder="pwreset.usernamePlaceholder" placeholder="请输入用户名" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="reset-email">EMAIL</label>
+                    <input type="email" id="reset-email" class="form-input" data-i18n-placeholder="pwreset.emailPlaceholder" placeholder="请输入邮箱" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="reset-code">VERIFICATION CODE</label>
+                    <div class="captcha-row">
+                        <input type="text" id="reset-code" class="form-input" data-i18n-placeholder="pwreset.codePlaceholder" placeholder="请输入验证码" autocomplete="off" maxlength="6" style="flex: 1;" />
+                        <button id="get-captcha-btn" class="get-captcha-btn" data-i18n="pwreset.getCaptcha">获取验证码</button>
+                    </div>
+                    <div id="email-sent-message" class="email-sent-message"></div>
+                </div>
+                <button id="submit-code-btn" class="login-btn" data-i18n="pwreset.submitCode">提交验证码</button>
+                <div id="reset-feedback" class="login-feedback"></div>
+                <a id="back-to-login-link" class="back-to-login-link" data-i18n="pwreset.backToLogin">返回登录</a>
+            </div>
+            
+            <!-- 模拟邮件显示容器（仅 lili 显示） -->
+            <div id="email-display-container" style="display: none; margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(255, 255, 255, 0.95); border-radius: 6px; border-left: 4px solid var(--color-gold); color: #333; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);">
+                <div style="font-size: 0.7rem; color: #666; margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 8px;">
+                    <div style="margin-bottom: 4px;"><strong>From:</strong> security@madrabbit.com</div>
+                    <div style="margin-bottom: 4px;"><strong>To:</strong> lili@madrabbit.com</div>
+                    <div><strong>Subject:</strong> Password Reset Verification Code</div>
+                </div>
+                <div style="font-size: 0.85rem; line-height: 1.6; margin-bottom: 12px;">
+                    Hello lili,<br><br>
+                    You have requested to reset your password. Please use the following verification code:<br><br>
+                    <div id="email-verification-code" style="text-align: center; font-size: 1.8rem; font-weight: bold; color: var(--color-gold); letter-spacing: 5px; padding: 12px; background: rgba(212, 175, 55, 0.1); border-radius: 4px; margin: 12px 0;"></div>
+                    This code will expire in 30 minutes.<br><br>
+                    If you did not request this, please ignore this email.<br><br>
+                    Best regards,<br>
+                    MadRabbit Security Team
+                </div>
+            </div>
+
+            <!-- 设置新密码表单 -->
+            <div id="new-password-form" class="reset-password-form">
+                <div style="background: rgba(212, 175, 55, 0.1); padding: var(--spacing-sm); border-radius: 4px; margin-bottom: var(--spacing-md); border-left: 3px solid var(--color-gold);">
+                    <div style="font-size: 0.75rem; color: var(--color-gold); margin-bottom: 4px;">VERIFICATION INFO</div>
+                    <div style="font-size: 0.85rem; color: var(--color-text-primary);">
+                        <div style="margin-bottom: 4px;"><strong>Username:</strong> <span id="verify-username-display"></span></div>
+                        <div><strong>Email:</strong> <span id="verify-email-display"></span></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new-password">NEW PASSWORD</label>
+                    <input type="password" id="new-password" class="form-input" data-i18n-placeholder="pwreset.newPasswordPlaceholder" placeholder="请输入新密码" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">CONFIRM PASSWORD</label>
+                    <input type="password" id="confirm-password" class="form-input" placeholder="请再次输入新密码" autocomplete="off" />
+                </div>
+                <button id="submit-new-password-btn" class="login-btn" data-i18n="pwreset.setNewPassword">设置新密码</button>
+                <div id="new-password-feedback" class="login-feedback"></div>
+                <a id="back-to-login-link-success" class="back-to-login-link" data-i18n="pwreset.backToLogin">返回登录</a>
+            </div>
+        </div>
+
+        <!-- 提示 -->
+        <div class="tips-box">
+            <h3 data-i18n="pwreset.tips">提示</h3>
+            <ul>
+                <li data-i18n="pwreset.tip1">你的账号是lili,邮箱是lili@madrabbit.com,但是忘记了密码~</li>
+                <li data-i18n="pwreset.tip2">你在重置密码时发现了一个小秘密</li>
+                <li data-i18n="pwreset.tip3">通过这个秘密你重置了lucy的密码</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <!-- MD5 加密库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+    <script>
+        let currentFlag = null;
+        let currentCaptcha = '';
+        let currentUsername = '';
+        let currentEmail = ''; // 添加当前邮箱
+        let resetToken = null;
+
+        // 国际化翻译
+        const i18n = {
+            'zh-CN': {
+                'pwreset.title': '任意密码重置',
+                'pwreset.flagPlaceholder': '输入 Flag...',
+                'pwreset.submit': '提交',
+                'pwreset.usernamePlaceholder': '请输入用户名',
+                'pwreset.passwordPlaceholder': '请输入密码',
+                'pwreset.emailPlaceholder': '请输入邮箱',
+                'pwreset.codePlaceholder': '请输入验证码',
+                'pwreset.getCaptcha': '获取验证码',
+                'pwreset.submitCode': '提交验证码',
+                'pwreset.newPasswordPlaceholder': '请输入新密码',
+                'pwreset.setNewPassword': '设置新密码',
+                'pwreset.backToLogin': '返回登录',
+                'pwreset.backToReset': '返回上一步',
+                'pwreset.login': 'Login',
+                'pwreset.forgotPassword': '忘记密码？',
+                'pwreset.tips': '提示',
+                'pwreset.tip1': '你的账号是lili,邮箱是lili@madrabbit.com,但是忘记了密码~',
+                'pwreset.tip2': '你在重置密码时发现了一个小秘密',
+                'pwreset.tip3': '通过这个秘密你重置了lucy的密码',
+                'pwreset.enterUserPass': '请输入用户名和密码',
+                'pwreset.loggingIn': '登录中...',
+                'pwreset.networkError': '网络错误，请稍后重试',
+                'pwreset.enterUsername': '请输入用户名',
+                'pwreset.enterEmail': '请输入邮箱',
+                'pwreset.sendingCode': '发送中...',
+                'pwreset.checkingCode': '验证中...',
+                'pwreset.settingPassword': '设置中...',
+                'pwreset.enterCode': '请输入验证码',
+                'pwreset.enterNewPassword': '请输入新密码',
+                'pwreset.codeSent': '验证码已发送至邮箱（模拟）：',
+                'pwreset.congrats': '恭喜！密码重置成功！',
+                'pwreset.enterFlag': '请输入 Flag',
+                'pwreset.resetFirst': '请先重置密码获取 Flag',
+                'pwreset.flagError': 'Flag 错误'
+            },
+            'en-US': {
+                'pwreset.title': 'Password Reset Everyone',
+                'pwreset.flagPlaceholder': 'Enter Flag...',
+                'pwreset.submit': 'Submit',
+                'pwreset.usernamePlaceholder': 'Enter username',
+                'pwreset.passwordPlaceholder': 'Enter password',
+                'pwreset.emailPlaceholder': 'Enter email',
+                'pwreset.codePlaceholder': 'Enter code',
+                'pwreset.getCaptcha': 'Get Code',
+                'pwreset.submitCode': 'Submit Code',
+                'pwreset.newPasswordPlaceholder': 'Enter new password',
+                'pwreset.setNewPassword': 'Set New Password',
+                'pwreset.backToLogin': 'Back to Login',
+                'pwreset.backToReset': 'Back to Previous',
+                'pwreset.login': 'Login',
+                'pwreset.forgotPassword': 'Forgot Password?',
+                'pwreset.tips': 'Tips',
+                'pwreset.tip1': 'Your account number is lili and your email address is lili@madrabbit.com, but you forgot your password ~',
+                'pwreset.tip2': 'You discovered a little secret when you reset your password',
+                'pwreset.tip3': "With this secret you reset lucy's password",
+                'pwreset.enterUserPass': 'Please enter username and password',
+                'pwreset.loggingIn': 'Logging in...',
+                'pwreset.networkError': 'Network error, please try again later',
+                'pwreset.enterUsername': 'Please enter username',
+                'pwreset.enterEmail': 'Please enter email',
+                'pwreset.sendingCode': 'Sending...',
+                'pwreset.checkingCode': 'Verifying...',
+                'pwreset.settingPassword': 'Setting...',
+                'pwreset.enterCode': 'Please enter verification code',
+                'pwreset.enterNewPassword': 'Please enter new password',
+                'pwreset.codeSent': 'Verification code sent to email (simulated): ',
+                'pwreset.congrats': 'Congratulations! Password reset successful!',
+                'pwreset.enterFlag': 'Please enter Flag',
+                'pwreset.resetFirst': 'Please reset password first to get Flag',
+                'pwreset.flagError': 'Incorrect flag'
+            }
+        };
+
+        // 获取当前语言
+        function getLang() {
+            return localStorage.getItem('lang') || 'en-US';
+        }
+
+        // 获取翻译文本
+        function t(key) {
+            const lang = getLang();
+            return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key;
+        }
+
+        // 初始化
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            
+            // 监听语言切换事件（本地）
+            window.addEventListener('languageChanged', applyLanguage);
+            
+            // 监听父页面发送的语言切换消息（iframe 通信）
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        // 应用语言
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+            
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.placeholder = i18n[lang][key];
+                }
+            });
+            
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.title = i18n[lang][key];
+                }
+            });
+        }
+
+        // 查询并更新关卡状态
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=auth-session&vul_level=level2');
+                const result = await response.json();
+                if (result.status === '未开始') {
+                    await updateChallengeStatus('进行中');
+                }
+            } catch (error) {
+                console.error('查询关卡状态失败:', error);
+            }
+        }
+
+        // 更新关卡状态
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'auth-session', vul_level: 'level2', status: status })
+                });
+                
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'challengeStatusChanged',
+                        vulnType: 'auth-session',
+                        level: 'level2',
+                        status: status
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('更新关卡状态失败:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 登录相关
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('forgot-password-link').addEventListener('click', showResetForm);
+            
+            // 重置密码相关
+            document.getElementById('get-captcha-btn').addEventListener('click', handleGetCaptcha);
+            document.getElementById('submit-code-btn').addEventListener('click', handleSubmitCode);
+            document.getElementById('back-to-login-link').addEventListener('click', showLoginForm);
+            
+            // 新密码设置相关
+            document.getElementById('submit-new-password-btn').addEventListener('click', handleSetNewPassword);
+            document.getElementById('back-to-login-link-success').addEventListener('click', showLoginForm);
+            
+            // Flag 提交
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        // 显示登录表单
+        function showLoginForm() {
+            document.getElementById('login-form').style.display = 'flex';
+            document.getElementById('reset-password-form').style.display = 'none';
+            document.getElementById('new-password-form').style.display = 'none';
+            clearFeedback();
+        }
+
+        // 显示重置表单
+        function showResetForm(e) {
+            e.preventDefault();
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('reset-password-form').style.display = 'flex';
+            document.getElementById('new-password-form').style.display = 'none';
+            clearFeedback();
+        }
+
+        // 显示新密码表单
+        function showNewPasswordForm(username) {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('reset-password-form').style.display = 'none';
+            document.getElementById('new-password-form').style.display = 'flex';
+            
+            // 隐藏邮件显示容器
+            const emailDisplayContainer = document.getElementById('email-display-container');
+            if (emailDisplayContainer) {
+                emailDisplayContainer.style.display = 'none';
+            }
+            
+            // 显示验证信息
+            document.getElementById('verify-username-display').textContent = username;
+            document.getElementById('verify-email-display').textContent = currentEmail;
+            
+            clearFeedback();
+        }
+
+        // 清除反馈信息
+        function clearFeedback() {
+            document.getElementById('login-feedback').textContent = '';
+            document.getElementById('login-feedback').className = 'login-feedback';
+            document.getElementById('reset-feedback').textContent = '';
+            document.getElementById('reset-feedback').className = 'login-feedback';
+            document.getElementById('new-password-feedback').textContent = '';
+            document.getElementById('new-password-feedback').className = 'login-feedback';
+            document.getElementById('email-sent-message').classList.remove('show');
+        }
+
+        // 处理登录
+        async function handleLogin() {
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const feedbackEl = document.getElementById('login-feedback');
+            const loginBtn = document.getElementById('login-btn');
+            
+            if (!username || !password) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.enterUserPass');
+                return;
+            }
+            
+            loginBtn.disabled = true;
+            loginBtn.textContent = t('pwreset.loggingIn');
+            
+            const passwordMd5 = md5(password);
+            
+            try {
+                const response = await fetch('/api/challenge/auth-session/pwrest/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password: passwordMd5 })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    feedbackEl.className = 'login-feedback success';
+                    feedbackEl.textContent = result.message;
+                    
+                    // 如果返回了 flag，显示出来
+                    if (result.flag) {
+                        feedbackEl.textContent += ' | Flag: ' + result.flag;
+                        currentFlag = result.flag;
+                    }
+                } else {
+                    feedbackEl.className = 'login-feedback error';
+                    feedbackEl.textContent = result.message;
+                }
+            } catch (error) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.networkError');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = t('pwreset.login');
+            }
+        }
+
+        // 处理获取验证码
+        async function handleGetCaptcha() {
+            const username = document.getElementById('reset-username').value.trim();
+            const email = document.getElementById('reset-email').value.trim();
+            const feedbackEl = document.getElementById('reset-feedback');
+            const messageEl = document.getElementById('email-sent-message');
+            const emailDisplayContainer = document.getElementById('email-display-container');
+            const emailVerificationCode = document.getElementById('email-verification-code');
+            const getCaptchaBtn = document.getElementById('get-captcha-btn');
+            
+            // 初始化提示信息
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'login-feedback';
+            messageEl.classList.remove('show');
+            messageEl.textContent = '';
+            // 隐藏邮件显示容器
+            if (emailDisplayContainer) {
+                emailDisplayContainer.style.display = 'none';
+            }
+            
+            if (!username) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.enterUsername');
+                return;
+            }
+            
+            if (!email) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.enterEmail');
+                return;
+            }
+            
+            getCaptchaBtn.disabled = true;
+            getCaptchaBtn.textContent = t('pwreset.sendingCode');
+            
+            try {
+                const response = await fetch(`/api/challenge/auth-session/pwrest/send_code?username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}`, {
+                    method: 'GET'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentCaptcha = result.code;
+                    currentUsername = username;
+                    currentEmail = email; // 保存邮箱
+                    
+                    // 如果是 lili@madrabbit.com，显示模拟邮件内容
+                    if (email.toLowerCase() === 'lili@madrabbit.com') {
+                        // 显示邮件容器并设置验证码
+                        if (emailDisplayContainer) {
+                            emailDisplayContainer.style.display = 'block';
+                            emailVerificationCode.textContent = result.code;
+                        }
+                    } else {
+                        // 其他用户只显示发送成功提示，不显示验证码
+                        messageEl.textContent = '验证码已发送，请查收';
+                        messageEl.classList.add('show');
+                    }
+                    
+                    feedbackEl.textContent = '';
+                } else {
+                    feedbackEl.className = 'login-feedback error';
+                    feedbackEl.textContent = result.message;
+                }
+            } catch (error) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.networkError');
+            } finally {
+                getCaptchaBtn.disabled = false;
+                getCaptchaBtn.textContent = t('pwreset.getCaptcha');
+            }
+        }
+
+        // 处理提交验证码
+        async function handleSubmitCode() {
+            const username = document.getElementById('reset-username').value.trim();
+            const email = document.getElementById('reset-email').value.trim();
+            const code = document.getElementById('reset-code').value.trim();
+            const feedbackEl = document.getElementById('reset-feedback');
+            const submitBtn = document.getElementById('submit-code-btn');
+            
+            if (!code) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.enterCode');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = t('pwreset.checkingCode');
+            
+            try {
+                const response = await fetch(`/api/challenge/auth-session/pwrest/check_code?username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`, {
+                    method: 'GET'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    resetToken = result.token;
+                    // 将 token 存储到 cookie，30 分钟有效
+                    const expires = new Date(Date.now() + 30 * 60 * 1000).toUTCString();
+                    document.cookie = `pwreset_token=${resetToken}; expires=${expires}; path=/`;
+                    
+                    feedbackEl.textContent = '';
+                    showNewPasswordForm(username);
+                } else {
+                    feedbackEl.className = 'login-feedback error';
+                    feedbackEl.textContent = result.message;
+                }
+            } catch (error) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.networkError');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = t('pwreset.submitCode');
+            }
+        }
+
+        // 处理设置新密码
+        async function handleSetNewPassword() {
+            const newPassword = document.getElementById('new-password').value.trim();
+            const confirmPassword = document.getElementById('confirm-password').value.trim();
+            const feedbackEl = document.getElementById('new-password-feedback');
+            const submitBtn = document.getElementById('submit-new-password-btn');
+            
+            if (!newPassword) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.enterNewPassword');
+                return;
+            }
+            
+            if (!confirmPassword) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = 'Please confirm your password';
+                return;
+            }
+            
+            // 验证两次密码是否一致
+            if (newPassword !== confirmPassword) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = 'Passwords do not match. Please try again.';
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = t('pwreset.settingPassword');
+            
+            // 从 cookie 获取 token
+            const cookies = document.cookie.split(';');
+            let token = null;
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith('pwreset_token=')) {
+                    token = cookie.substring('pwreset_token='.length);
+                    break;
+                }
+            }
+            
+            if (!token) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = 'Verification token not found';
+                submitBtn.disabled = false;
+                submitBtn.textContent = t('pwreset.setNewPassword');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/challenge/auth-session/pwrest/pw_rest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUsername, newPassword, token })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    feedbackEl.className = 'login-feedback success';
+                    feedbackEl.textContent = t('pwreset.congrats');
+                    if (result.flag) {
+                        feedbackEl.textContent += ' | Flag: ' + result.flag;
+                        currentFlag = result.flag;
+                    }
+                    
+                    // 成功后隐藏提交按钮
+                    submitBtn.style.display = 'none';
+                } else {
+                    feedbackEl.className = 'login-feedback error';
+                    feedbackEl.textContent = result.message;
+                }
+            } catch (error) {
+                feedbackEl.className = 'login-feedback error';
+                feedbackEl.textContent = t('pwreset.networkError');
+            } finally {
+                if (!result || !result.success) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = t('pwreset.setNewPassword');
+                }
+            }
+        }
+
+        // 处理 Flag 提交
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('pwreset.enterFlag');
+                return;
+            }
+            
+            // 移除 currentFlag 的检查，直接调用后端接口验证
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'auth-session', vul_level: 'level2', flag: submittedFlag })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = '恭喜！挑战完成！';
+                    await updateChallengeStatus('已完成');
+                    
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'challengeCompleted',
+                            vulnType: 'auth-session',
+                            level: 'level2'
+                        }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('pwreset.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('pwreset.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

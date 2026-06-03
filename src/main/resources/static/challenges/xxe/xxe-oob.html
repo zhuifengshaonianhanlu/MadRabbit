@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XML Validator</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root { --color-bg-dark: #0a0a0a; --color-text-primary: #f5f5f5; --color-text-secondary: #9a9a9a; --color-gold: #d4af37; --color-gold-light: #f4cf57; --color-gold-dark: #b4941f; --color-success: #22c55e; --color-danger: #ff2a2a; --font-display: "Georgia", serif; --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; --spacing-xs: 0.5rem; --spacing-sm: 1rem; --spacing-md: 1.5rem; --spacing-lg: 2rem; --spacing-xl: 3rem; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .main-container { max-width: 700px; margin: 0 auto; }
+        .desc-text { color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: var(--spacing-lg); line-height: 1.6; }
+
+        .xml-editor { width: 100%; min-height: 180px; background: rgba(0,0,0,0.3); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 6px; padding: 14px; font-family: 'Courier New', monospace; font-size: 0.82rem; color: var(--color-text-primary); resize: vertical; line-height: 1.5; }
+        .xml-editor:focus { outline: none; border-color: var(--color-gold); }
+
+        .btn-row { display: flex; gap: 10px; margin-top: var(--spacing-sm); }
+        .btn-primary { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: #000; border: none; border-radius: 5px; padding: 11px 22px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+        .btn-primary:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .btn-secondary { background: transparent; border: 1px solid rgba(212, 175, 55, 0.4); color: var(--color-gold); border-radius: 5px; padding: 11px 22px; font-weight: 500; cursor: pointer; font-size: 0.9rem; }
+        .btn-secondary:hover { background: rgba(212, 175, 55, 0.1); }
+
+        .result-box { margin-top: var(--spacing-md); background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: var(--spacing-md); font-family: 'Courier New', monospace; font-size: 0.82rem; white-space: pre-wrap; word-break: break-all; color: var(--color-text-secondary); display: none; max-height: 300px; overflow-y: auto; }
+        .result-box.show { display: block; }
+        .result-box.success { border-color: rgba(34, 197, 94, 0.3); }
+        .result-box.error { border-color: rgba(255, 42, 42, 0.3); color: var(--color-danger); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; font-family: var(--font-display); font-size: 0.95rem; }
+        .tips-box ul { margin: 0; padding-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 data-i18n="xxe2.title">XML Validator</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="xxe2.flagPlaceholder" placeholder="Enter Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="xxe2.submit">Submit</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <p class="desc-text" data-i18n="xxe2.desc">This endpoint validates XML format. It returns whether your XML is well-formed, but does not display parsed content.</p>
+
+            <textarea id="xml-input" class="xml-editor">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;data&gt;
+  &lt;item&gt;test&lt;/item&gt;
+&lt;/data&gt;</textarea>
+
+            <div class="btn-row">
+                <button id="btn-validate" class="btn-primary" data-i18n="xxe2.validate">Validate XML</button>
+            </div>
+
+            <div id="result-box" class="result-box"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="xxe2.hints">Hints</h3>
+            <ul>
+                <li data-i18n="xxe2.hint1">When the server doesn't return XML content, how can you exfiltrate data?</li>
+                <li data-i18n="xxe2.hint2">What's the difference between XML parameter entities (%entity) and general entities?</li>
+                <li data-i18n="xxe2.hint3">Does this system provide an endpoint that can receive out-of-band data?</li>
+                <li data-i18n="xxe2.hint4">Flag file: file:///flag/xxe-level2.txt</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'xxe2.title': 'XML 格式校验',
+                'xxe2.flagPlaceholder': '输入 Flag...',
+                'xxe2.submit': '提交',
+                'xxe2.desc': '此接口校验 XML 格式是否合规。只返回校验结果，不回显解析内容。',
+                'xxe2.validate': '校验 XML',
+                'xxe2.hints': '提示',
+                'xxe2.hint1': '服务端不回显 XML 内容，如何把数据带出来？',
+                'xxe2.hint2': 'XML 参数实体（%entity）和普通实体有什么区别？',
+                'xxe2.hint3': '你需要一个可以接收 HTTP 请求的外部服务来接收外带数据',
+                'xxe2.hint4': 'Flag 文件：file:///flag/xxe-level2.txt',
+                'xxe2.congrats': '恭喜！关卡完成！',
+                'xxe2.enterFlag': '请输入 Flag',
+                'xxe2.flagError': 'Flag 不正确',
+                'xxe2.networkError': '网络错误'
+            },
+            'en-US': {
+                'xxe2.title': 'XML Validator',
+                'xxe2.flagPlaceholder': 'Enter Flag...',
+                'xxe2.submit': 'Submit',
+                'xxe2.desc': 'This endpoint validates XML format. It returns whether your XML is well-formed, but does not display parsed content.',
+                'xxe2.validate': 'Validate XML',
+                'xxe2.hints': 'Hints',
+                'xxe2.hint1': 'The server doesn\'t return XML content. How can you exfiltrate data?',
+                'xxe2.hint2': 'What\'s the difference between XML parameter entities (%entity) and general entities?',
+                'xxe2.hint3': 'You need an external HTTP listener to receive out-of-band data.',
+                'xxe2.hint4': 'Flag file: file:///flag/xxe-level2.txt',
+                'xxe2.congrats': 'Congratulations! Challenge completed!',
+                'xxe2.enterFlag': 'Please enter Flag',
+                'xxe2.flagError': 'Incorrect flag',
+                'xxe2.networkError': 'Network error'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        async function handleValidate() {
+            const xml = document.getElementById('xml-input').value;
+            const resultBox = document.getElementById('result-box');
+            try {
+                const res = await fetch('/api/challenge/xxe/level2/validate', { method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml });
+                const data = await res.json();
+                resultBox.className = 'result-box show ' + (data.valid ? 'success' : 'error');
+                resultBox.textContent = JSON.stringify(data, null, 2);
+            } catch (e) { resultBox.className = 'result-box show error'; resultBox.textContent = t('xxe2.networkError'); }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('xxe2.enterFlag'); return; }
+            try {
+                const res = await fetch('/api/challenge/flag_check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vul_type: 'xxe', vul_level: 'level2', flag: submittedFlag }) });
+                const data = await res.json();
+                if (data.success) { flagMessage.className = 'flag-message-inline success'; flagMessage.textContent = t('xxe2.congrats'); if (window.parent !== window) window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'xxe', level: 'level2' }, '*'); }
+                else { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = data.message || t('xxe2.flagError'); }
+            } catch (e) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('xxe2.networkError'); }
+        }
+
+        function applyLanguage() {
+            const lang = getLang(); document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (i18n[lang] && i18n[lang][k]) el.textContent = i18n[lang][k]; });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const k = el.getAttribute('data-i18n-placeholder'); if (i18n[lang] && i18n[lang][k]) el.placeholder = i18n[lang][k]; });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-validate').addEventListener('click', handleValidate);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', event => { if (event.data && event.data.type === 'languageChanged') { localStorage.setItem('lang', event.data.language); applyLanguage(); } });
+        });
+    </script>
+</body>
+</html>

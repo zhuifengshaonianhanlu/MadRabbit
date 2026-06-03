@@ -1,0 +1,506 @@
+<!-- 顶部导航栏组件 -->
+<!-- 导航栏基础样式 -->
+<style>
+    /* CSS Variables */
+    :root {
+        --color-bg-dark: #0a0a0a;
+        --color-bg-deep: #050505;
+        --color-text-primary: #f5f5f5;
+        --color-text-secondary: #9a9a9a;
+        --color-gold: #d4af37;
+        --color-gold-light: #f4cf57;
+        --color-gold-dark: #b4941f;
+        --color-bronze: #cd7f32;
+        
+        --font-display: "Georgia", "Times New Roman", serif;
+        --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        
+        --spacing-xs: 0.5rem;
+        --spacing-sm: 1rem;
+        --spacing-md: 1.5rem;
+        --spacing-lg: 2rem;
+        --spacing-xl: 3rem;
+    }
+    
+    /* 基础重置 */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-family: var(--font-body);
+        background: var(--color-bg-dark);
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+    }
+    
+    /* 背景效果 */
+    .bg-gradient {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+                    radial-gradient(ellipse at 70% 80%, rgba(205, 127, 50, 0.06) 0%, transparent 50%);
+        z-index: 0;
+    }
+
+    .bg-grid {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px);
+        background-size: 60px 60px;
+        z-index: 0;
+        opacity: 0.4;
+    }
+
+    .decor-line {
+        position: fixed;
+        background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+        height: 1px;
+        width: 300px;
+        z-index: 0;
+    }
+
+    .decor-line.top {
+        top: 20%;
+        left: -10%;
+    }
+
+    .decor-line.bottom {
+        bottom: 20%;
+        right: -10%;
+    }
+    
+    /* 导航栏样式 */
+    .navbar {
+        position: relative;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        padding: var(--spacing-md) var(--spacing-xl);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+
+    .brand-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .brand-title {
+        font-family: var(--font-display);
+        font-size: clamp(1rem, 2.5vw, 1.5rem);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        letter-spacing: 0.02em;
+        background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .navbar-user {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-sm);
+    }
+</style>
+
+<!-- 语言选择器样式 -->
+<style>
+    /* 语言选择器容器 */
+    .language-selector {
+        position: relative;
+        margin-right: 16px;
+    }
+    
+    /* 语言按钮 */
+    .language-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(244, 207, 87, 0.04));
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(212, 175, 55, 0.15);
+    }
+    
+    .language-btn:hover {
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(244, 207, 87, 0.08));
+        border-color: rgba(212, 175, 55, 0.3);
+        box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
+    }
+    
+    .language-btn i:first-child {
+        font-size: 16px;
+        color: var(--color-gold, #d4af37);
+    }
+    
+    .language-btn span {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-gold, #d4af37);
+        letter-spacing: 0.02em;
+    }
+    
+    .lang-arrow {
+        font-size: 10px;
+        transition: transform 0.3s ease;
+        color: var(--color-gold-dark, #b4941f);
+    }
+    
+    .language-selector.active .lang-arrow {
+        transform: rotate(180deg);
+    }
+    
+    /* 语言下拉菜单 */
+    .language-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        background: rgba(10, 14, 26, 0.98);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 8px;
+        min-width: 160px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: all 0.25s ease;
+        z-index: 1000;
+        overflow: hidden;
+    }
+    
+    .language-selector.active .language-dropdown {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    
+    /* 语言选项 */
+    .lang-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        width: 100%;
+        background: none;
+        border: none;
+        color: var(--color-text-primary, #f5f5f5);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+    }
+    
+    .lang-option:hover {
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(244, 207, 87, 0.06));
+    }
+    
+    .lang-option.selected {
+        background: rgba(212, 175, 55, 0.1);
+    }
+    
+    .lang-flag {
+        font-size: 18px;
+        line-height: 1;
+    }
+    
+    .lang-name {
+        flex: 1;
+        font-weight: 500;
+    }
+    
+    .lang-check {
+        font-size: 12px;
+        color: var(--color-gold, #d4af37);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    
+    .lang-option.selected .lang-check {
+        opacity: 1;
+    }
+    
+    /* 导航栏用户区域布局 */
+    .navbar-user {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    /* 响应式适配 */
+    @media (max-width: 480px) {
+        .language-selector {
+            margin-right: 8px;
+        }
+        
+        .language-btn {
+            padding: 6px 10px;
+        }
+        
+        .language-btn span {
+            display: none;
+        }
+        
+        .language-btn i:first-child {
+            font-size: 18px;
+        }
+    }
+</style>
+
+<!-- 用户下拉菜单样式 -->
+<style>
+    .user-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(244, 207, 87, 0.05));
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    
+    .user-info:hover {
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(244, 207, 87, 0.1));
+        border-color: rgba(212, 175, 55, 0.4);
+        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+    }
+    
+    .user-info i {
+        font-size: 18px;
+        background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .user-info span {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-gold);
+        letter-spacing: 0.02em;
+    }
+    
+    .dropdown-arrow {
+        font-size: 12px;
+        transition: transform 0.3s ease;
+        color: var(--color-gold-dark);
+    }
+    
+    .user-dropdown.active .dropdown-arrow {
+        transform: rotate(180deg);
+    }
+    
+    .dropdown-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        background: rgba(10, 14, 26, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(212, 175, 55, 0.2);
+        border-radius: 8px;
+        min-width: 180px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .user-dropdown.active .dropdown-menu {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        color: var(--color-text-primary);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
+        background: none;
+        width: 100%;
+        font-size: 14px;
+        text-align: left;
+    }
+    
+    .dropdown-item:first-child {
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .dropdown-item:last-child {
+        border-radius: 0 0 8px 8px;
+    }
+    
+    .dropdown-item:hover {
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(244, 207, 87, 0.08));
+        color: var(--color-gold-light);
+    }
+    
+    .dropdown-item i {
+        width: 18px;
+        text-align: center;
+        color: var(--color-gold);
+    }
+    
+    .user-badge {
+        font-size: 11px;
+        padding: 2px 8px;
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(244, 207, 87, 0.15));
+        color: var(--color-gold-light);
+        border-radius: 10px;
+        margin-left: 6px;
+        font-weight: 500;
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        letter-spacing: 0.03em;
+    }
+</style>
+
+<!-- 通用 i18n 辅助函数 -->
+<script>
+    /**
+     * 获取翻译文本
+     * @param {string} key - 翻译 key
+     * @param {object} params - 替换参数
+     * @returns {string} 翻译后的文本
+     */
+    function t(key, params) {
+        if (typeof i18nManager !== 'undefined') {
+            return i18nManager.t(key, params);
+        }
+        return key;
+    }
+    
+    /**
+     * 获取当前语言
+     * @returns {string} 当前语言代码
+     */
+    function getCurrentLang() {
+        if (typeof i18nManager !== 'undefined') {
+            return i18nManager.currentLang;
+        }
+        return localStorage.getItem('lang') || 'en-US';
+    }
+    
+    /**
+     * 获取 API 请求的语言 Header
+     * @returns {object} 包含 Accept-Language 的 header 对象
+     */
+    function getLangHeaders() {
+        return {
+            'Accept-Language': getCurrentLang()
+        };
+    }
+    
+    /**
+     * 格式化日期（根据当前语言）
+     * @param {string} dateString - 日期字符串
+     * @returns {string} 格式化后的日期
+     */
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleString(getCurrentLang(), {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+</script>
+
+<!-- 导航栏 HTML 结构 -->
+<nav class="navbar">
+    <div class="navbar-brand">
+        <img src="/logo/madrabbit-logo.svg" alt="Logo" class="brand-icon">
+        <span class="brand-title">Madrabbit</span>
+    </div>
+    
+    <div class="navbar-user">
+        <!-- 语言选择器 -->
+        <div class="language-selector" onclick="toggleLanguageDropdown(event)">
+            <div class="language-btn">
+                <i class="fas fa-language"></i>
+                <span id="currentLangText">中文</span>
+                <i class="fas fa-chevron-down lang-arrow"></i>
+            </div>
+            
+            <div class="language-dropdown">
+                <button class="lang-option" onclick="selectLanguage('zh-CN')" data-lang="zh-CN">
+                    <span class="lang-flag">🇨🇳</span>
+                    <span class="lang-name">中文</span>
+                    <i class="fas fa-check lang-check"></i>
+                </button>
+                <button class="lang-option" onclick="selectLanguage('en-US')" data-lang="en-US">
+                    <span class="lang-flag">🇺🇸</span>
+                    <span class="lang-name">English</span>
+                    <i class="fas fa-check lang-check"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 用户下拉菜单 -->
+        <div class="user-dropdown">
+            <div class="user-info" onclick="toggleUserDropdown()">
+                <i class="fas fa-user-circle"></i>
+                <span id="username">Guest</span>
+                <span class="user-badge" style="display: none;">Admin</span>
+                <i class="fas fa-chevron-down dropdown-arrow"></i>
+            </div>
+            
+            <div class="dropdown-menu">
+                <a href="/index.html" class="dropdown-item">
+                    <i class="fas fa-home"></i>
+                    <span data-i18n="nav.home">Home</span>
+                </a>
+                <div id="userManagementItem" class="dropdown-item" onclick="window.location.href='/user-m.html'">
+                    <i class="fas fa-user-cog"></i>
+                    <span data-i18n="nav.userSettings">用户设置</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span data-i18n="nav.logout">退出登录</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>

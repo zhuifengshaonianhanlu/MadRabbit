@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic SSRF - NBA 1996</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: transparent;
+            color: var(--color-text-primary);
+            font-family: var(--font-body);
+            min-height: 100vh;
+            padding: var(--spacing-md);
+        }
+
+        /* Header */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            border-bottom: 1px solid transparent;
+            background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat;
+        }
+        .header-section h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 3vw, 1.8rem);
+            font-weight: 600;
+            color: var(--color-gold);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: var(--color-text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            width: 180px;
+        }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        /* Team photo banner */
+        .team-banner {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-lg);
+            position: relative;
+        }
+        .team-banner img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            display: block;
+            filter: brightness(0.7);
+        }
+        .team-banner .banner-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px 24px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+        }
+        .team-banner .banner-title {
+            font-family: var(--font-display);
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--color-gold);
+            margin-bottom: 4px;
+        }
+        .team-banner .banner-sub {
+            font-size: 0.85rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* Player grid */
+        .player-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+        .player-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(212,175,55,0.12);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .player-card:hover {
+            border-color: rgba(212,175,55,0.35);
+            box-shadow: 0 4px 20px rgba(212,175,55,0.1);
+        }
+        .player-card .card-img {
+            width: 40%;
+            aspect-ratio: 3/4;
+            object-fit: cover;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0.85);
+            transition: filter 0.3s;
+        }
+        .player-card:hover .card-img { filter: brightness(1); }
+        .player-card .card-body {
+            padding: 12px 14px 14px;
+        }
+        .player-card .card-name {
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--color-gold);
+            margin-bottom: 4px;
+        }
+        .player-card .card-team {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 8px;
+        }
+        .player-card .card-quote {
+            font-size: 0.78rem;
+            color: var(--color-text-secondary);
+            font-style: italic;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            min-height: 2.4em;
+        }
+        .player-card .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            background: rgba(212,175,55,0.1);
+            border: 1px solid rgba(212,175,55,0.25);
+            border-radius: 4px;
+            padding: 7px 0;
+            color: var(--color-gold);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .player-card .download-btn:hover {
+            background: rgba(212,175,55,0.2);
+            border-color: var(--color-gold);
+        }
+        .player-card .download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Download feedback toast */
+        .download-feedback {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            max-width: 420px;
+            padding: 16px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            animation: feedbackIn 0.3s ease-out;
+            word-break: break-all;
+        }
+        .download-feedback.success {
+            background: rgba(34,197,94,0.15);
+            border: 1px solid rgba(34,197,94,0.3);
+            color: var(--color-success);
+        }
+        .download-feedback.error {
+            background: rgba(255,42,42,0.15);
+            border: 1px solid rgba(255,42,42,0.3);
+            color: var(--color-danger);
+        }
+        .download-feedback.info {
+            background: rgba(212,175,55,0.1);
+            border: 1px solid rgba(212,175,55,0.25);
+            color: var(--color-gold);
+        }
+        .download-feedback .feedback-close {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        .download-feedback .feedback-close:hover { opacity: 1; }
+        @keyframes feedbackIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* SSRF result panel */
+        .ssrf-result {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(212,175,55,0.25);
+            border-radius: 6px;
+            display: none;
+        }
+        .ssrf-result.show { display: block; }
+        .ssrf-result h4 {
+            color: var(--color-gold);
+            margin-bottom: var(--spacing-sm);
+            font-family: var(--font-display);
+        }
+        .ssrf-result pre {
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            color: var(--color-text-primary);
+            white-space: pre-wrap;
+            word-break: break-all;
+            background: rgba(0,0,0,0.3);
+            padding: var(--spacing-sm);
+            border-radius: 4px;
+        }
+
+        /* Tips box */
+        .tips-box {
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-md);
+            background: rgba(212,175,55,0.05);
+            border-left: 3px solid var(--color-gold);
+            border-radius: 4px;
+        }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: var(--color-gold-light);
+        }
+
+        @media (max-width: 1024px) {
+            .player-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .player-grid { grid-template-columns: 1fr 1fr; gap: var(--spacing-sm); }
+            .flag-input-inline { width: 140px; }
+            .team-banner img { height: 160px; }
+        }
+        @media (max-width: 480px) {
+            .player-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <!-- Header with flag submit -->
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="ssrfBasic.title">基础SSRF - NBA 1996黄金一代</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="ssrfBasic.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="ssrfBasic.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <!-- Team banner -->
+        <div class="team-banner">
+            <img src="/challenges/ssrf/images/all.jpg" alt="NBA 1996 Draft Class" />
+            <div class="banner-overlay">
+                <div class="banner-title" id="banner-title">NBA 1996 黄金一代</div>
+                <div class="banner-sub" id="banner-sub">NBA历史上最伟大的选秀大年之一</div>
+            </div>
+        </div>
+
+        <!-- Player cards grid -->
+        <div class="player-grid" id="player-grid">
+            <!-- Rendered by JS -->
+        </div>
+
+        <!-- SSRF result panel -->
+        <div class="ssrf-result" id="ssrf-result">
+            <h4 id="result-title">服务器响应</h4>
+            <pre id="ssrf-result-content"></pre>
+        </div>
+
+        <!-- Tips -->
+        <div class="tips-box">
+            <h3 data-i18n="ssrfBasic.tips">提示</h3>
+            <ul>
+                <li data-i18n="ssrfBasic.tip1">点击"下载头像"时，浏览器会把图片URL交给服务端去请求</li>
+                <li data-i18n="ssrfBasic.tip2">用开发者工具拦截请求，把图片URL换成服务器"家里"的地址试试</li>
+                <li><span data-i18n="ssrfBasic.tip3Prefix">服务器自己身上藏着一个秘密接口：</span> <code>http://127.0.0.1:8080/api/challenge/ssrf/basic/secret-info</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+
+        // Player data - NBA 1996 Golden Generation (bilingual)
+        const players = [
+            {
+                image: '/challenges/ssrf/images/KobeBryant.jpg',
+                nameKey: 'ssrfBasic.p0.name',
+                teamKey: 'ssrfBasic.p0.team',
+                quoteKey: 'ssrfBasic.p0.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/Iverson.jpg',
+                nameKey: 'ssrfBasic.p1.name',
+                teamKey: 'ssrfBasic.p1.team',
+                quoteKey: 'ssrfBasic.p1.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/RayAllen.jpg',
+                nameKey: 'ssrfBasic.p2.name',
+                teamKey: 'ssrfBasic.p2.team',
+                quoteKey: 'ssrfBasic.p2.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/Marbury.jpg',
+                nameKey: 'ssrfBasic.p3.name',
+                teamKey: 'ssrfBasic.p3.team',
+                quoteKey: 'ssrfBasic.p3.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/SteveNash.jpg',
+                nameKey: 'ssrfBasic.p4.name',
+                teamKey: 'ssrfBasic.p4.team',
+                quoteKey: 'ssrfBasic.p4.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/MarcusCamby.jpg',
+                nameKey: 'ssrfBasic.p5.name',
+                teamKey: 'ssrfBasic.p5.team',
+                quoteKey: 'ssrfBasic.p5.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/DerekFisher.jpg',
+                nameKey: 'ssrfBasic.p6.name',
+                teamKey: 'ssrfBasic.p6.team',
+                quoteKey: 'ssrfBasic.p6.quote'
+            },
+            {
+                image: '/challenges/ssrf/images/JohnWallace.jpg',
+                nameKey: 'ssrfBasic.p7.name',
+                teamKey: 'ssrfBasic.p7.team',
+                quoteKey: 'ssrfBasic.p7.quote'
+            }
+        ];
+
+        // Build current host base URL for SSRF
+        function getServerBaseUrl() {
+            return window.location.origin;
+        }
+
+        // Render player cards
+        function renderPlayerGrid() {
+            const grid = document.getElementById('player-grid');
+            const baseUrl = getServerBaseUrl();
+            grid.innerHTML = players.map((p, idx) => `
+                <div class="player-card">
+                    <img class="card-img" src="${p.image}" alt="${t(p.nameKey)}" />
+                    <div class="card-body">
+                        <div class="card-name">${t(p.nameKey)}</div>
+                        <div class="card-team">${t(p.teamKey)}</div>
+                        <div class="card-quote">${t(p.quoteKey)}</div>
+                        <button class="download-btn" data-idx="${idx}" data-url="${baseUrl}${p.image}">
+                            <i class="fas fa-download"></i> ${t('ssrfBasic.downloadBtn')}
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        const i18n = {
+            'zh-CN': {
+                'ssrfBasic.title': '基础SSRF - NBA 1996黄金一代',
+                'ssrfBasic.flagPlaceholder': '输入 Flag...',
+                'ssrfBasic.submit': '提交',
+                'ssrfBasic.downloadBtn': '下载头像',
+                'ssrfBasic.bannerTitle': 'NBA 1996 黄金一代',
+                'ssrfBasic.bannerSub': 'NBA历史上最伟大的选秀大年之一',
+                'ssrfBasic.resultTitle': '服务器响应',
+                'ssrfBasic.tips': '提示',
+                'ssrfBasic.tip1': '点击"下载头像"时，浏览器会把图片URL交给服务端去请求',
+                'ssrfBasic.tip2': '用开发者工具拦截请求，把图片URL换成服务器"家里"的地址试试',
+                'ssrfBasic.tip3Prefix': '服务器自己身上藏着一个秘密接口：',
+                'ssrfBasic.congrats': '恭喜！基础SSRF关卡完成！',
+                'ssrfBasic.enterFlag': '请输入 Flag',
+                'ssrfBasic.flagError': 'Flag 不正确',
+                'ssrfBasic.networkError': '网络错误，请稍后再试',
+                'ssrfBasic.downloading': '下载中...',
+                'ssrfBasic.downloadSuccess': '头像下载成功！',
+                'ssrfBasic.downloadFailed': '下载失败',
+                'ssrfBasic.ssrfDetected': '检测到SSRF！服务器访问了内网接口，返回了敏感数据：',
+                // Players
+                'ssrfBasic.p0.name': 'Kobe Bryant', 'ssrfBasic.p0.team': '洛杉矶湖人', 'ssrfBasic.p0.quote': '"我不想成为下一个乔丹，我只想成为科比。"',
+                'ssrfBasic.p1.name': 'Allen Iverson', 'ssrfBasic.p1.team': '费城76人', 'ssrfBasic.p1.quote': '"我们坐在这里，我可是建队核心，而你们在谈训练？"',
+                'ssrfBasic.p2.name': 'Ray Allen', 'ssrfBasic.p2.team': '密尔沃基雄鹿', 'ssrfBasic.p2.quote': '"史上最伟大的射手"——三分球纪录的永恒守护者',
+                'ssrfBasic.p3.name': 'Stephon Marbury', 'ssrfBasic.p3.team': '明尼苏达森林狼', 'ssrfBasic.p3.quote': '"独狼"——统治纽约水泥球场的华丽控卫',
+                'ssrfBasic.p4.name': 'Steve Nash', 'ssrfBasic.p4.team': '菲尼克斯太阳', 'ssrfBasic.p4.quote': '挡拆大师，两届MVP，重新定义进攻的大脑',
+                'ssrfBasic.p5.name': 'Marcus Camby', 'ssrfBasic.p5.team': '多伦多猛龙', 'ssrfBasic.p5.quote': '年度最佳防守球员——无人能轻易翻越的高墙',
+                'ssrfBasic.p6.name': 'Derek Fisher', 'ssrfBasic.p6.team': '洛杉矶湖人', 'ssrfBasic.p6.quote': '0.4秒足以改变一切——从不退缩的关键先生',
+                'ssrfBasic.p7.name': 'John Wallace', 'ssrfBasic.p7.team': '纽约尼克斯', 'ssrfBasic.p7.quote': '锡拉丘兹的骄傲，在禁区默默奋战的安静勇士'
+            },
+            'en-US': {
+                'ssrfBasic.title': 'Basic SSRF - NBA 1996 Golden Generation',
+                'ssrfBasic.flagPlaceholder': 'Enter Flag...',
+                'ssrfBasic.submit': 'Submit',
+                'ssrfBasic.downloadBtn': 'Download',
+                'ssrfBasic.bannerTitle': 'NBA 1996 Draft Class',
+                'ssrfBasic.bannerSub': 'One of the greatest draft classes in NBA history',
+                'ssrfBasic.resultTitle': 'Server Response',
+                'ssrfBasic.tips': 'Tips',
+                'ssrfBasic.tip1': 'When you click "Download", the browser sends the image URL to the server to fetch',
+                'ssrfBasic.tip2': 'Try intercepting the request with DevTools and changing the imageUrl to a "home" address',
+                'ssrfBasic.tip3Prefix': 'The server has a hidden internal endpoint:',
+                'ssrfBasic.congrats': 'Congratulations! Basic SSRF challenge completed!',
+                'ssrfBasic.enterFlag': 'Please enter Flag',
+                'ssrfBasic.flagError': 'Incorrect flag',
+                'ssrfBasic.networkError': 'Network error, please try again later',
+                'ssrfBasic.downloading': 'Downloading...',
+                'ssrfBasic.downloadSuccess': 'Image downloaded successfully!',
+                'ssrfBasic.downloadFailed': 'Download failed',
+                'ssrfBasic.ssrfDetected': 'SSRF Detected! The server accessed an internal endpoint and returned sensitive data:',
+                // Players
+                'ssrfBasic.p0.name': 'Kobe Bryant', 'ssrfBasic.p0.team': 'Los Angeles Lakers', 'ssrfBasic.p0.quote': '"I don\'t want to be the next Michael Jordan, I only want to be Kobe Bryant."',
+                'ssrfBasic.p1.name': 'Allen Iverson', 'ssrfBasic.p1.team': 'Philadelphia 76ers', 'ssrfBasic.p1.quote': '"We sitting in here, I\'m supposed to be the franchise player, and we in here talking about practice?"',
+                'ssrfBasic.p2.name': 'Ray Allen', 'ssrfBasic.p2.team': 'Milwaukee Bucks', 'ssrfBasic.p2.quote': '"The greatest shooter ever" — the eternal guardian of the three-point record',
+                'ssrfBasic.p3.name': 'Stephon Marbury', 'ssrfBasic.p3.team': 'Minnesota Timberwolves', 'ssrfBasic.p3.quote': '"Starbury" — the flashy point guard who ruled New York\'s concrete courts',
+                'ssrfBasic.p4.name': 'Steve Nash', 'ssrfBasic.p4.team': 'Phoenix Suns', 'ssrfBasic.p4.quote': 'The maestro of the pick-and-roll, twice MVP, the brain that redefined offense',
+                'ssrfBasic.p5.name': 'Marcus Camby', 'ssrfBasic.p5.team': 'Toronto Raptors', 'ssrfBasic.p5.quote': 'Defensive Player of the Year — a wall that no one climbs easily',
+                'ssrfBasic.p6.name': 'Derek Fisher', 'ssrfBasic.p6.team': 'Los Angeles Lakers', 'ssrfBasic.p6.quote': '0.4 seconds is enough to change everything — the clutch king who never flinched',
+                'ssrfBasic.p7.name': 'John Wallace', 'ssrfBasic.p7.team': 'New York Knicks', 'ssrfBasic.p7.quote': 'Syracuse\'s pride, the quiet warrior who fought in the paint'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'zh-CN'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        function showFeedbackToast(message, type, duration) {
+            const existing = document.querySelector('.download-feedback');
+            if (existing) existing.remove();
+            const el = document.createElement('div');
+            el.className = 'download-feedback ' + type;
+            el.innerHTML = `<span>${message}</span><span class="feedback-close" onclick="this.parentElement.remove()">&times;</span>`;
+            document.body.appendChild(el);
+            if (duration !== 0) {
+                setTimeout(() => { if (el.parentElement) el.remove(); }, duration || 5000);
+            }
+        }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            renderPlayerGrid();
+            bindEvents();
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+            // Re-render dynamic content
+            renderPlayerGrid();
+            document.getElementById('banner-title').textContent = t('ssrfBasic.bannerTitle');
+            document.getElementById('banner-sub').textContent = t('ssrfBasic.bannerSub');
+            document.getElementById('result-title').textContent = t('ssrfBasic.resultTitle');
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=ssrf&vul_level=level1');
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { console.error('Status check failed:', error); }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'ssrf', vul_level: 'level1', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'ssrf', level: 'level1', status: status }, '*');
+                }
+            } catch (error) { console.error('Update status failed:', error); }
+        }
+
+        function bindEvents() {
+            // Download button clicks (delegated)
+            document.getElementById('player-grid').addEventListener('click', function(e) {
+                const btn = e.target.closest('.download-btn');
+                if (btn && !btn.disabled) {
+                    handleDownload(btn);
+                }
+            });
+
+            // Flag submit
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function handleDownload(btn) {
+            const imageUrl = btn.dataset.url;
+            const idx = parseInt(btn.dataset.idx);
+            const origText = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('ssrfBasic.downloading')}`;
+
+            try {
+                const response = await fetch('/api/challenge/ssrf/basic/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageUrl: imageUrl })
+                });
+
+                const contentType = response.headers.get('Content-Type') || '';
+
+                // Check if response is JSON (SSRF hit internal API)
+                if (contentType.includes('application/json')) {
+                    const data = await response.json();
+
+                    if (data.flag) {
+                        // SSRF successful - got the flag from internal API
+                        currentFlag = data.flag;
+                        showFeedbackToast(t('ssrfBasic.ssrfDetected') + ' Flag: ' + data.flag, 'success', 0);
+
+                        // Show SSRF result panel
+                        const resultPanel = document.getElementById('ssrf-result');
+                        const resultContent = document.getElementById('ssrf-result-content');
+                        resultPanel.classList.add('show');
+                        resultContent.textContent = JSON.stringify(data, null, 2);
+                    } else {
+                        showFeedbackToast(t('ssrfBasic.downloadFailed'), 'error');
+                    }
+                } else {
+                    // Normal image download - trigger browser download
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = t(players[idx].nameKey).replace(/\s+/g, '_') + '.jpg';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showFeedbackToast(t(players[idx].nameKey) + ' ' + t('ssrfBasic.downloadSuccess'), 'success');
+                }
+            } catch (error) {
+                showFeedbackToast(t('ssrfBasic.networkError'), 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('ssrfBasic.enterFlag'); return; }
+
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'ssrf', vul_level: 'level1', flag: submittedFlag })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('ssrfBasic.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'ssrf', level: 'level1' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('ssrfBasic.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('ssrfBasic.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

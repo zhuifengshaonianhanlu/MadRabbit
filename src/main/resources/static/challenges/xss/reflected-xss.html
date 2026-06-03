@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反射型 XSS - 搜索注入</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --color-card-bg: rgba(255, 255, 255, 0.03);
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            margin: 0;
+            padding: var(--spacing-lg); 
+            background: transparent; 
+            color: var(--color-text-primary); 
+            font-family: var(--font-body); 
+            min-height: 100vh;
+        }
+        
+        /* 头部区域 */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--spacing-md);
+            padding-bottom: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid transparent;
+            background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat;
+        }
+        .level-content h1 { 
+            font-family: var(--font-display); 
+            font-size: clamp(1rem, 3vw, 1.8rem); 
+            font-weight: 600; 
+            color: var(--color-gold); 
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .flag-submit-form { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-shrink: 0;
+        }
+        .flag-input-inline { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 4px; 
+            padding: 8px 12px; 
+            color: var(--color-text-primary); 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+            width: 180px;
+        }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 4px; 
+            padding: 8px 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.85rem;
+        }
+        .flag-submit-btn-small:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        
+        /* 搜索区域 */
+        .search-section {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+            max-width: 800px;
+            margin: 0 auto var(--spacing-lg);
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: var(--spacing-sm);
+        }
+        .search-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: var(--color-text-primary);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus { outline: none; border-color: var(--color-gold); }
+        .search-input::placeholder { color: var(--color-text-secondary); }
+        .search-btn {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .search-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .search-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        /* XSS Flag 显示区 - 在 search-input 正下方 */
+        .xss-flag-area {
+            margin-top: var(--spacing-sm);
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+            border: 1px solid var(--color-success);
+            border-radius: 6px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .xss-flag-area.show { display: flex; }
+        .xss-flag-area .flag-icon { font-size: 1.3rem; }
+        .xss-flag-area .flag-label { color: var(--color-text-secondary); font-size: 0.9rem; }
+        .xss-flag-area .flag-value { 
+            color: var(--color-success); 
+            font-family: 'Courier New', monospace; 
+            font-weight: 600; 
+            font-size: 1rem;
+        }
+        
+        /* 搜索结果区域 */
+        .results-section {
+            max-width: 800px;
+            margin: 0 auto var(--spacing-lg);
+            display: none;
+        }
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        .results-title { color: var(--color-text-primary); font-size: 1.1rem; }
+        .results-count { color: var(--color-text-secondary); font-size: 0.9rem; }
+        
+        /* 搜索关键词回显区 - XSS 输出点 */
+        .search-keyword-display {
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            border-left: 3px solid var(--color-gold);
+        }
+        .keyword-label { color: var(--color-text-secondary); font-size: 0.85rem; margin-bottom: 8px; }
+        /* 【漏洞核心】输出点使用 innerHTML 渲染用户输入 */
+        .keyword-output {
+            color: var(--color-gold-light);
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* 商品列表 */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .product-card {
+            background: var(--color-card-bg);
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            transition: all 0.2s;
+        }
+        .product-card:hover {
+            border-color: rgba(212, 175, 55, 0.4);
+            transform: translateY(-2px);
+        }
+        .product-image {
+            width: 100%;
+            height: 120px;
+            background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(0, 0, 0, 0.3));
+            border-radius: 4px;
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+        .product-name {
+            color: var(--color-text-primary);
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        .product-desc {
+            color: var(--color-text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: var(--spacing-sm);
+        }
+        .product-price {
+            color: var(--color-gold);
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .no-results {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--color-text-secondary);
+        }
+        .no-results .icon { font-size: 3rem; margin-bottom: var(--spacing-sm); opacity: 0.5; }
+        
+        /* 提示区 */
+        .tips-box { 
+            margin-top: var(--spacing-xl); 
+            padding: var(--spacing-md); 
+            background: rgba(212, 175, 55, 0.05); 
+            border-left: 3px solid var(--color-gold); 
+            border-radius: 4px; 
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: var(--color-gold-light);
+        }
+        
+        @media (max-width: 768px) {
+            .flag-input-inline { width: 140px; }
+            .search-box { flex-direction: column; }
+            .search-btn { width: 100%; justify-content: center; }
+            .product-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <!-- 头部区域 -->
+        <div class="header-section">
+            <h1 data-i18n="reflectedXss.title">🛒 商品搜索 - 反射型 XSS 演示</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="reflectedXss.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="reflectedXss.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <!-- 搜索区域 -->
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" id="search-input" class="search-input" data-i18n-placeholder="reflectedXss.searchPlaceholder" placeholder="搜索商品..." autocomplete="off" />
+                <button id="search-btn" class="search-btn">
+                    <span>🔍</span>
+                    <span data-i18n="reflectedXss.searchBtn">搜索</span>
+                </button>
+            </div>
+            
+            <!-- XSS Flag 显示区域 - 在 search-input 正下方 -->
+            <div id="xss-flag-area" class="xss-flag-area">
+                <span class="flag-icon">🚩</span>
+                <span class="flag-label" data-i18n="reflectedXss.flagLabel">🚩 恭喜! 检测到XSS! 你的Flag是:</span>
+                <span id="xss-flag-value" class="flag-value"></span>
+            </div>
+        </div>
+
+        <!-- 搜索结果区域 -->
+        <div id="results-section" class="results-section">
+            <div class="results-header">
+                <h2 class="results-title" data-i18n="reflectedXss.resultsFor">📦 搜索结果:</h2>
+                <span id="results-count" class="results-count"></span>
+            </div>
+            
+            <!-- 搜索关键词回显 - XSS 输出点 -->
+            <div class="search-keyword-display">
+                <div class="keyword-label" data-i18n="reflectedXss.keywordLabel">搜索关键词:</div>
+                <div id="keyword-output" class="keyword-output"></div>
+            </div>
+            
+            <!-- 商品列表 -->
+            <div id="product-grid" class="product-grid"></div>
+            <div id="no-results" class="no-results" style="display: none;">
+                <div class="icon">📦</div>
+                <div data-i18n="reflectedXss.noResults">未找到匹配商品</div>
+            </div>
+        </div>
+
+        <!-- 提示区 -->
+        <div class="tips-box">
+            <h3 data-i18n="reflectedXss.tips">攻击提示</h3>
+            <ul>
+                <li data-i18n="reflectedXss.tip1">观察输出点, 你的输入在HTML标签的哪个属性中?</li>
+                <li data-i18n="reflectedXss.tip2">尝试用双引号闭合属性, 然后注入新的HTML标签</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+
+        // 模拟商品数据
+        const PRODUCTS = [
+            { id: 1, name: '无线鼠标', nameEn: 'Wireless Mouse', price: 29.99, icon: '🖱️', desc: '蓝牙连接，静音设计' },
+            { id: 2, name: '机械键盘', nameEn: 'Mechanical Keyboard', price: 89.99, icon: '⌨️', desc: '青轴，RGB背光' },
+            { id: 3, name: 'USB集线器', nameEn: 'USB Hub', price: 19.99, icon: '🔌', desc: '4口高速传输' },
+            { id: 4, name: '显示器支架', nameEn: 'Monitor Stand', price: 45.99, icon: '🖥️', desc: '升降旋转，人体工学' },
+            { id: 5, name: '笔记本电脑包', nameEn: 'Laptop Bag', price: 35.99, icon: '💼', desc: '防水面料，15.6英寸' },
+            { id: 6, name: '蓝牙耳机', nameEn: 'Bluetooth Headphone', price: 59.99, icon: '🎧', desc: '主动降噪，30小时续航' },
+            { id: 7, name: '移动硬盘', nameEn: 'Portable SSD', price: 79.99, icon: '💾', desc: '1TB容量，读取500MB/s' },
+            { id: 8, name: '摄像头', nameEn: 'Webcam', price: 49.99, icon: '📷', desc: '1080P高清，内置麦克风' }
+        ];
+
+        // 国际化翻译
+        const i18n = {
+            'zh-CN': {
+                'reflectedXss.title': '🛒 商品搜索 - 反射型 XSS 演示',
+                'reflectedXss.flagPlaceholder': '输入 Flag...',
+                'reflectedXss.submit': '提交',
+                'reflectedXss.searchPlaceholder': '搜索商品...',
+                'reflectedXss.searchBtn': '搜索',
+                'reflectedXss.tips': '攻击提示',
+                'reflectedXss.tip1': '观察输出点, 你的输入在HTML标签的哪个属性中?',
+                'reflectedXss.tip2': '尝试用双引号闭合属性, 然后注入新的HTML标签',
+                'reflectedXss.noResults': '未找到匹配商品',
+                'reflectedXss.searching': '搜索中...',
+                'reflectedXss.enterQuery': '请输入搜索关键词',
+                'reflectedXss.congrats': '🎉 恭喜! 反射型XSS关卡完成!',
+                'reflectedXss.enterFlag': '请输入 Flag',
+                'reflectedXss.flagError': 'Flag 不正确, 请重试',
+                'reflectedXss.networkError': '网络错误, 请稍后再试',
+                'reflectedXss.flagLabel': '🚩 恭喜! 检测到XSS! 你的Flag是:',
+                'reflectedXss.keywordLabel': '搜索关键词:',
+                'reflectedXss.resultsFor': '📦 搜索结果:',
+                'reflectedXss.resultsCount': '共 {count} 件商品'
+            },
+            'en-US': {
+                'reflectedXss.title': '🛒 Product Search - Reflected XSS Demo',
+                'reflectedXss.flagPlaceholder': 'Enter Flag...',
+                'reflectedXss.submit': 'Submit',
+                'reflectedXss.searchPlaceholder': 'Search products...',
+                'reflectedXss.searchBtn': 'Search',
+                'reflectedXss.tips': 'Attack Tips',
+                'reflectedXss.tip1': 'Observe the output point. Which HTML attribute contains your input?',
+                'reflectedXss.tip2': 'Try closing the attribute with double quotes, then inject new HTML tags',
+                'reflectedXss.noResults': 'No matching products found',
+                'reflectedXss.searching': 'Searching...',
+                'reflectedXss.enterQuery': 'Please enter search keyword',
+                'reflectedXss.congrats': '🎉 Congratulations! Reflected XSS challenge completed!',
+                'reflectedXss.enterFlag': 'Please enter Flag',
+                'reflectedXss.flagError': 'Incorrect flag, please try again',
+                'reflectedXss.networkError': 'Network error, please try again later',
+                'reflectedXss.flagLabel': '🚩 Congratulations! XSS detected! Your Flag is:',
+                'reflectedXss.keywordLabel': 'Search keyword:',
+                'reflectedXss.resultsFor': '📦 Search Results:',
+                'reflectedXss.resultsCount': '{count} products found'
+            }
+        };
+
+        // 获取当前语言
+        function getLang() {
+            return localStorage.getItem('lang') || 'en-US';
+        }
+
+        // 获取翻译文本
+        function t(key, params) {
+            const lang = getLang();
+            let text = i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key;
+            if (params) {
+                Object.keys(params).forEach(k => {
+                    text = text.replace('{' + k + '}', params[k]);
+                });
+            }
+            return text;
+        }
+
+        // 获取请求头（包含 Token）
+        function getHeaders() {
+            const token = localStorage.getItem('token');
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? 'Bearer ' + token : ''
+            };
+        }
+
+        // 显示 XSS Flag
+        function showXssFlag(flag) {
+            const flagArea = document.getElementById('xss-flag-area');
+            const flagValue = document.getElementById('xss-flag-value');
+            flagValue.textContent = flag;
+            flagArea.classList.add('show');
+            currentFlag = flag;
+        }
+
+        // 隐藏 XSS Flag
+        function hideXssFlag() {
+            const flagArea = document.getElementById('xss-flag-area');
+            flagArea.classList.remove('show');
+            currentFlag = null;
+        }
+
+        // 渲染商品卡片
+        function renderProducts(products) {
+            const grid = document.getElementById('product-grid');
+            const lang = getLang();
+            
+            if (products.length === 0) {
+                grid.innerHTML = '';
+                document.getElementById('no-results').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('no-results').style.display = 'none';
+            grid.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <div class="product-image">${p.icon}</div>
+                    <div class="product-name">${lang === 'zh-CN' ? p.name : p.nameEn}</div>
+                    <div class="product-desc">${p.desc}</div>
+                    <div class="product-price">$${p.price.toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+
+        // 初始化
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            
+            // 监听语言切换事件（本地）
+            window.addEventListener('languageChanged', applyLanguage);
+            
+            // 监听父页面发送的语言切换消息（iframe 通信）
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        // 应用语言
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.textContent = i18n[lang][key];
+                }
+            });
+            
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) {
+                    el.placeholder = i18n[lang][key];
+                }
+            });
+        }
+
+        // 查询并更新关卡状态
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=xss&vul_level=level1', {
+                    headers: getHeaders()
+                });
+                const result = await response.json();
+                if (result.status && (result.status === '未开始' || result.status === 'Not Started')) {
+                    await updateChallengeStatus('进行中');
+                }
+            } catch (error) {
+                console.error('查询关卡状态失败:', error);
+            }
+        }
+
+        // 更新关卡状态
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ vul_type: 'xss', vul_level: 'level1', status: status })
+                });
+                
+                // 通知父页面状态变更
+                if (window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'challengeStatusChanged',
+                        vulnType: 'xss',
+                        level: 'level1',
+                        status: status
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('更新关卡状态失败:', error);
+            }
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+            document.getElementById('search-input').addEventListener('keypress', e => { 
+                if (e.key === 'Enter') handleSearch(); 
+            });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { 
+                if (e.key === 'Enter') handleSubmitFlag(); 
+            });
+        }
+
+        // 处理搜索
+        async function handleSearch() {
+            const query = document.getElementById('search-input').value.trim();
+            
+            if (!query) {
+                alert(t('reflectedXss.enterQuery'));
+                return;
+            }
+            
+            const searchBtn = document.getElementById('search-btn');
+            searchBtn.disabled = true;
+            const btnText = searchBtn.querySelector('[data-i18n="reflectedXss.searchBtn"]');
+            const originalText = btnText.textContent;
+            btnText.textContent = t('reflectedXss.searching');
+            
+            hideXssFlag();
+            
+            try {
+                const response = await fetch('/api/challenge/xss/reflected/search', {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ query: query })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 显示搜索结果区域
+                    document.getElementById('results-section').style.display = 'block';
+                    
+                    const keywordOutput = document.getElementById('keyword-output');
+                    
+                    // 渲染商品列表
+                    if (result.results && result.results.length > 0) {
+                        // 有匹配商品时：显示正常搜索结果提示
+                        keywordOutput.textContent = `搜索 '${result.query}' 的结果：`;
+                        const products = result.results.map(r => {
+                            const found = PRODUCTS.find(p => 
+                                p.nameEn.toLowerCase() === r.name.toLowerCase() ||
+                                p.name === r.name
+                            );
+                            return found || { 
+                                id: 0, 
+                                name: r.name, 
+                                nameEn: r.name, 
+                                price: parseFloat(r.price.replace('$', '')), 
+                                icon: '📦', 
+                                desc: '' 
+                            };
+                        });
+                        renderProducts(products);
+                        document.getElementById('results-count').textContent =
+                            t('reflectedXss.resultsCount', { count: products.length });
+                    } else {
+                        // 没有匹配商品时：【漏洞核心】使用 innerHTML 直接拼接服务端返回的 query
+                        // 用户输入被放在HTML标签属性的双引号内，需要先闭合引号才能注入
+                        // 例如: "><img src=x onerror=alert(1)>
+                        keywordOutput.innerHTML = `<div class="${result.query}">抱歉, 商品 '${result.query}' 没有找到</div>`;
+                                            
+                        renderProducts([]);
+                        document.getElementById('results-count').textContent =
+                            t('reflectedXss.resultsCount', { count: 0 });
+                    }
+                    
+                    // 如果检测到有效的 XSS payload，显示 flag
+                    if (result.flag) {
+                        showXssFlag(result.flag);
+                    }
+                } else {
+                    alert(result.message || t('reflectedXss.networkError'));
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+                alert(t('reflectedXss.networkError'));
+            } finally {
+                searchBtn.disabled = false;
+                btnText.textContent = originalText;
+            }
+        }
+
+        // 处理 Flag 提交
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('reflectedXss.enterFlag');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ vul_type: 'xss', vul_level: 'level1', flag: submittedFlag })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('reflectedXss.congrats');
+                    await updateChallengeStatus('已完成');
+                    
+                    // 通知父页面关卡完成
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'challengeCompleted',
+                            vulnType: 'xss',
+                            level: 'level1'
+                        }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('reflectedXss.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('reflectedXss.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL注入 - 登录绕过</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: var(--spacing-lg); 
+            background: transparent; 
+            color: var(--color-text-primary); 
+            font-family: var(--font-body); 
+            min-height: 100vh;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: var(--spacing-md);
+            padding-bottom: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            border-bottom: 1px solid transparent;
+            background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat;
+        }
+        .level-content h1 { 
+            font-family: var(--font-display); 
+            font-size: clamp(1rem, 3vw, 1.8rem); 
+            font-weight: 600; 
+            color: var(--color-gold); 
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .flag-submit-form { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            flex-shrink: 0;
+        }
+        .flag-input-inline { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 4px; 
+            padding: 8px 12px; 
+            color: var(--color-text-primary); 
+            font-family: 'Courier New', monospace; 
+            font-size: 0.85rem; 
+            width: 180px; 
+        }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 4px; 
+            padding: 8px 16px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+        }
+        .flag-submit-btn-small:hover { 
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); 
+        }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        
+        .login-container { 
+            background: rgba(255, 255, 255, 0.02); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 6px; 
+            padding: 1.5rem; 
+            max-width: 400px; 
+            margin: 0 auto;
+        }
+        .login-form { 
+            display: flex; 
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 0.9rem; color: var(--color-gold); font-weight: 500; }
+        .form-input { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(212, 175, 55, 0.25); 
+            border-radius: 3px; 
+            padding: 0.75rem 1rem; 
+            color: var(--color-text-primary); 
+            font-size: 0.95rem; 
+        }
+        .form-input:focus { outline: none; border-color: var(--color-gold); }
+        .login-btn { 
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); 
+            color: var(--color-bg-dark); 
+            border: none; 
+            border-radius: 3px; 
+            padding: 0.75rem 1.5rem; 
+            font-size: 0.9rem; 
+            font-weight: 600; 
+            cursor: pointer; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .login-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .login-feedback { 
+            margin-top: var(--spacing-md); 
+            padding: var(--spacing-sm); 
+            border-radius: 3px; 
+            font-size: 0.85rem; 
+            min-height: 1.2em; 
+        }
+        .login-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .login-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        
+        .sql-preview {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-sm);
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            color: var(--color-text-secondary);
+            word-break: break-all;
+        }
+        .sql-preview span { color: var(--color-gold-light); }
+        .sql-toggle {
+            cursor: pointer;
+            margin-left: 8px;
+            color: var(--color-text-secondary);
+            vertical-align: middle;
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .sql-toggle:hover {
+            opacity: 1;
+            color: var(--color-gold-light);
+        }
+
+        .tips-box { 
+            margin-top: var(--spacing-xl); 
+            padding: var(--spacing-md); 
+            background: rgba(212, 175, 55, 0.05); 
+            border-left: 3px solid var(--color-gold); 
+            border-radius: 4px; 
+        }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); margin-top: 0; }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; margin-bottom: 0; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { 
+            background: rgba(0, 0, 0, 0.3); 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'Courier New', monospace;
+            color: var(--color-gold-light);
+        }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="sqlLogin.title">SQL注入 - 登录绕过</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="sqlLogin.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="sqlLogin.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="login-container">
+            <div class="login-form">
+                <div class="form-group">
+                    <label data-i18n="sqlLogin.username">用户名</label>
+                    <input type="text" id="username-input" class="form-input" placeholder="admin" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label data-i18n="sqlLogin.password">密码</label>
+                    <input type="password" id="password-input" class="form-input" placeholder="******" autocomplete="off" />
+                </div>
+                <button id="login-btn" class="login-btn">
+                    <span>🔐</span>
+                    <span data-i18n="sqlLogin.loginBtn">登录</span>
+                </button>
+            </div>
+            <div id="login-feedback" class="login-feedback"></div>
+            <div id="sql-preview" class="sql-preview" style="display: none;">
+                <span>SQL:</span>
+                <span id="sql-query-masked">*************************</span>
+                <span id="sql-query" style="display: none;"></span>
+                <span id="sql-toggle" class="sql-toggle" title="显示/隐藏SQL">
+                    <svg id="eye-closed" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                    <svg id="eye-open" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </span>
+            </div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="sqlLogin.tips">提示</h3>
+            <ul>
+                <li data-i18n="sqlLogin.tip1">据说管理员叫 admin，但密码嘛...谁知道呢？</li>
+                <li data-i18n="sqlLogin.tip2">有时候，系统对你说的话照单全收，并不会仔细甄别</li>
+                <li data-i18n="sqlLogin.tip3">试试让登录逻辑'自相矛盾'，也许门就开了</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+        const sqlQueryMasked = document.getElementById('sql-query-masked');
+        const sqlToggle = document.getElementById('sql-toggle');
+        const eyeClosed = document.getElementById('eye-closed');
+        const eyeOpen = document.getElementById('eye-open');
+        let sqlVisible = false;
+
+        const i18n = {
+            'zh-CN': {
+                'sqlLogin.title': 'SQL注入 - 登录绕过',
+                'sqlLogin.flagPlaceholder': '输入 Flag...',
+                'sqlLogin.submit': '提交',
+                'sqlLogin.username': '用户名',
+                'sqlLogin.password': '密码',
+                'sqlLogin.loginBtn': '登录',
+                'sqlLogin.tips': '提示',
+                'sqlLogin.tip1': '据说管理员叫 admin，但密码嘛...谁知道呢？',
+                'sqlLogin.tip2': '有时候，系统对你说的话照单全收，并不会仔细甄别',
+                'sqlLogin.tip3': '试试让登录逻辑\'自相矛盾\'，也许门就开了',
+                'sqlLogin.enterUsername': '请输入用户名',
+                'sqlLogin.loggingIn': '登录中...',
+                'sqlLogin.congrats': '恭喜！SQL注入登录绕过关卡完成！',
+                'sqlLogin.enterFlag': '请输入 Flag',
+                'sqlLogin.flagError': 'Flag 不正确',
+                'sqlLogin.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'sqlLogin.title': 'SQL Injection - Login Bypass',
+                'sqlLogin.flagPlaceholder': 'Enter Flag...',
+                'sqlLogin.submit': 'Submit',
+                'sqlLogin.username': 'Username',
+                'sqlLogin.password': 'Password',
+                'sqlLogin.loginBtn': 'Login',
+                'sqlLogin.tips': 'Tips',
+                'sqlLogin.tip1': 'The admin is called \'admin\', but the password... who knows?',
+                'sqlLogin.tip2': 'Sometimes the system takes your words at face value without scrutiny',
+                'sqlLogin.tip3': 'Try making the login logic \'contradict itself\' - the door might just open',
+                'sqlLogin.enterUsername': 'Please enter username',
+                'sqlLogin.loggingIn': 'Logging in...',
+                'sqlLogin.congrats': 'Congratulations! SQL Injection Login Bypass completed!',
+                'sqlLogin.enterFlag': 'Please enter Flag',
+                'sqlLogin.flagError': 'Incorrect flag',
+                'sqlLogin.networkError': 'Network error, please try again later'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        function showFeedback(element, type, message) {
+            element.className = 'login-feedback ' + type;
+            element.textContent = message;
+        }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=injection&vul_level=level1');
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { console.error('查询关卡状态失败:', error); }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'injection', vul_level: 'level1', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'injection', level: 'level1', status: status }, '*');
+                }
+            } catch (error) { console.error('更新关卡状态失败:', error); }
+        }
+
+        function bindEvents() {
+            document.getElementById('login-btn').addEventListener('click', handleLogin);
+            document.getElementById('username-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+            document.getElementById('password-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+            sqlToggle.addEventListener('click', function() {
+                sqlVisible = !sqlVisible;
+                if (sqlVisible) {
+                    sqlQueryMasked.style.display = 'none';
+                    document.getElementById('sql-query').style.display = 'inline';
+                    eyeClosed.style.display = 'none';
+                    eyeOpen.style.display = 'inline';
+                } else {
+                    sqlQueryMasked.style.display = 'inline';
+                    document.getElementById('sql-query').style.display = 'none';
+                    eyeClosed.style.display = 'inline';
+                    eyeOpen.style.display = 'none';
+                }
+            });
+        }
+
+        async function handleLogin() {
+            const username = document.getElementById('username-input').value;
+            const password = document.getElementById('password-input').value;
+            const feedbackEl = document.getElementById('login-feedback');
+            const loginBtn = document.getElementById('login-btn');
+            
+            if (!username.trim()) {
+                showFeedback(feedbackEl, 'error', t('sqlLogin.enterUsername'));
+                return;
+            }
+            
+            loginBtn.disabled = true;
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'login-feedback';
+            
+            try {
+                const response = await fetch('/api/challenge/injection/sql/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username, password: password })
+                });
+                
+                // 检查HTTP响应状态
+                if (!response.ok) {
+                    console.error('SQL Login API error:', response.status, response.statusText);
+                    showFeedback(feedbackEl, 'error', t('sqlLogin.networkError'));
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                // 独立处理SQL显示逻辑——即使后续逻辑出错，SQL预览也应正常展示
+                try {
+                    if (result.simulated_sql) {
+                        const sqlPreview = document.getElementById('sql-preview');
+                        const sqlQuery = document.getElementById('sql-query');
+                        if (sqlPreview && sqlQuery) {
+                            sqlPreview.style.display = 'block';
+                            sqlQuery.textContent = result.simulated_sql;
+                            sqlVisible = false;
+                            sqlQueryMasked.style.display = 'inline';
+                            sqlQuery.style.display = 'none';
+                            eyeClosed.style.display = 'inline';
+                            eyeOpen.style.display = 'none';
+                        }
+                    }
+                } catch (sqlErr) {
+                    console.error('SQL preview display error:', sqlErr);
+                }
+                
+                if (result.success) {
+                    if (result.injection_detected && result.flag) {
+                        currentFlag = result.flag;
+                        showFeedback(feedbackEl, 'success', result.message);
+                    } else {
+                        showFeedback(feedbackEl, 'success', result.message + ' (User: ' + result.user + ')');
+                    }
+                } else {
+                    showFeedback(feedbackEl, 'error', result.message || t('sqlLogin.networkError'));
+                }
+            } catch (error) {
+                console.error('Login request error:', error);
+                showFeedback(feedbackEl, 'error', t('sqlLogin.networkError'));
+            } finally {
+                loginBtn.disabled = false;
+            }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('sqlLogin.enterFlag');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'injection', vul_level: 'level1', flag: submittedFlag })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('sqlLogin.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'injection', level: 'level1' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('sqlLogin.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('sqlLogin.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

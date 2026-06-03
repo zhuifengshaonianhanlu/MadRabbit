@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocol SSRF</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+        
+        .url-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 600px; margin: 0 auto; }
+        .url-form { display: flex; gap: 8px; align-items: center; margin-bottom: var(--spacing-md); }
+        .url-input { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 3px; padding: 0.75rem 1rem; color: var(--color-text-primary); font-size: 0.95rem; }
+        .url-input:focus { outline: none; border-color: var(--color-gold); }
+        .url-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 3px; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; }
+        .url-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .url-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        
+        .url-feedback { margin-top: 0.5rem; padding: 0.5rem; border-radius: 3px; font-size: 0.8rem; text-align: center; min-height: 1.2em; }
+        .url-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .url-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        
+        .preview-results { margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(0, 0, 0, 0.2); border-radius: 4px; min-height: 100px; }
+        .preview-header { font-size: 0.95rem; color: var(--color-text-secondary); margin-bottom: var(--spacing-sm); padding-bottom: var(--spacing-sm); border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
+        .preview-content { font-family: 'Courier New', monospace; font-size: 0.85rem; color: var(--color-text-primary); white-space: pre-wrap; word-break: break-all; }
+        .no-preview { color: var(--color-text-secondary); text-align: center; padding: var(--spacing-md); }
+        
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+        @media (max-width: 768px) { .flag-input-inline { width: 140px; } .url-form { flex-direction: column; } .url-btn { width: 100%; justify-content: center; } }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="ssrfProtocol.title">协议利用 - 文件导入</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="ssrfProtocol.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="ssrfProtocol.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="url-container">
+            <div class="url-form">
+                <input type="text" id="url-input" class="url-input" data-i18n-placeholder="ssrfProtocol.urlPlaceholder" placeholder="输入要导入的文件URL..." autocomplete="off" />
+                <button id="import-btn" class="url-btn">
+                    <span>📥</span>
+                    <span data-i18n="ssrfProtocol.importBtn">导入</span>
+                </button>
+            </div>
+            <div id="url-feedback" class="url-feedback"></div>
+            
+            <div id="preview-results" class="preview-results">
+                <div class="no-preview" data-i18n="ssrfProtocol.initialHint">输入URL导入文件内容</div>
+            </div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="ssrfProtocol.tips">提示</h3>
+            <ul>
+                <li data-i18n="ssrfProtocol.tip1">这个文件导入功能胃口不错，属于"给什么吃什么"的类型</li>
+                <li data-i18n="ssrfProtocol.tip2">URL 不一定非要以 http 开头，世界比你想的更宽广</li>
+                <li><span data-i18n="ssrfProtocol.tip3Prefix">classpath 下的文件可以这样读：</span> <code>file:///.../internal-config.properties</code></li>
+                <li><span data-i18n="ssrfProtocol.tip4Prefix">服务器自己身上还藏着一个秘密接口：</span> <code>http://127.0.0.1:8080/api/challenge/ssrf/protocol/secret-info</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+
+        const i18n = {
+            'zh-CN': {
+                'ssrfProtocol.title': '协议利用 - 文件导入',
+                'ssrfProtocol.flagPlaceholder': '输入 Flag...',
+                'ssrfProtocol.submit': '提交',
+                'ssrfProtocol.urlPlaceholder': '输入要导入的文件URL...',
+                'ssrfProtocol.importBtn': '导入',
+                'ssrfProtocol.tips': '提示',
+                'ssrfProtocol.tip1': '这个文件导入功能不仅认 http，还认其他协议——试试 file://',
+                'ssrfProtocol.tip2': '服务器本地藏着一个 internal-config.properties 配置文件',
+                'ssrfProtocol.tip3Prefix': 'classpath 下的文件可以这样读：',
+'ssrfProtocol.tip4Prefix': '服务器自己身上还藏着一个秘密接口：',
+                'ssrfProtocol.initialHint': '输入URL导入文件内容',
+                'ssrfProtocol.enterUrl': '请输入URL',
+                'ssrfProtocol.importing': '导入中...',
+                'ssrfProtocol.congrats': '恭喜！协议利用关卡完成！',
+                'ssrfProtocol.enterFlag': '请输入 Flag',
+                'ssrfProtocol.flagError': 'Flag 不正确',
+                'ssrfProtocol.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'ssrfProtocol.title': 'Protocol Exploitation - File Import',
+                'ssrfProtocol.flagPlaceholder': 'Enter Flag...',
+                'ssrfProtocol.submit': 'Submit',
+                'ssrfProtocol.urlPlaceholder': 'Enter URL to import file...',
+                'ssrfProtocol.importBtn': 'Import',
+                'ssrfProtocol.tips': 'Tips',
+                'ssrfProtocol.tip1': 'This file import feature accepts not just http, but other protocols too — try file://',
+                'ssrfProtocol.tip2': 'There is a hidden internal-config.properties file on the server',
+                'ssrfProtocol.tip3Prefix': 'A classpath file can be read like this:',
+'ssrfProtocol.tip4Prefix': 'The server also has a hidden internal endpoint:',
+                'ssrfProtocol.initialHint': 'Enter URL to import file content',
+                'ssrfProtocol.enterUrl': 'Please enter a URL',
+                'ssrfProtocol.importing': 'Importing...',
+                'ssrfProtocol.congrats': 'Congratulations! Protocol exploitation challenge completed!',
+                'ssrfProtocol.enterFlag': 'Please enter Flag',
+                'ssrfProtocol.flagError': 'Incorrect flag',
+                'ssrfProtocol.networkError': 'Network error, please try again later'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+        function showFeedback(element, type, message) { element.className = 'url-feedback ' + type; element.textContent = message; }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') { localStorage.setItem('lang', event.data.language); applyLanguage(); }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key]; });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const key = el.getAttribute('data-i18n-placeholder'); if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key]; });
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=ssrf&vul_level=level2');
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { console.error('查询关卡状态失败:', error); }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vul_type: 'ssrf', vul_level: 'level2', status: status }) });
+                if (window.parent !== window) { window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'ssrf', level: 'level2', status: status }, '*'); }
+            } catch (error) { console.error('更新关卡状态失败:', error); }
+        }
+
+        function bindEvents() {
+            document.getElementById('import-btn').addEventListener('click', handleImport);
+            document.getElementById('url-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleImport(); });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function handleImport() {
+            const url = document.getElementById('url-input').value.trim();
+            const feedbackEl = document.getElementById('url-feedback');
+            const importBtn = document.getElementById('import-btn');
+            
+            if (!url) { showFeedback(feedbackEl, 'error', t('ssrfProtocol.enterUrl')); return; }
+            
+            importBtn.disabled = true;
+            const originalText = importBtn.querySelector('[data-i18n="ssrfProtocol.importBtn"]').textContent;
+            importBtn.querySelector('[data-i18n="ssrfProtocol.importBtn"]').textContent = t('ssrfProtocol.importing');
+            feedbackEl.textContent = ''; feedbackEl.className = 'url-feedback';
+            
+            try {
+                const response = await fetch('/api/challenge/ssrf/protocol/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url }) });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const resultsDiv = document.getElementById('preview-results');
+                    resultsDiv.innerHTML = '<div class="preview-header"></div><div class="preview-content"></div>';
+                    resultsDiv.querySelector('.preview-header').textContent = result.message;
+                    resultsDiv.querySelector('.preview-content').textContent = result.content || '';
+                    
+                    if (result.flag) { currentFlag = result.flag; showFeedback(feedbackEl, 'success', 'Protocol SSRF Detected! Flag: ' + result.flag); }
+                } else { showFeedback(feedbackEl, 'error', result.message || t('ssrfProtocol.networkError')); }
+            } catch (error) { showFeedback(feedbackEl, 'error', t('ssrfProtocol.networkError')); }
+            finally { importBtn.disabled = false; importBtn.querySelector('[data-i18n="ssrfProtocol.importBtn"]').textContent = originalText; }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('ssrfProtocol.enterFlag'); return; }
+            
+            try {
+                const response = await fetch('/api/challenge/flag_check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vul_type: 'ssrf', vul_level: 'level2', flag: submittedFlag }) });
+                const result = await response.json();
+                
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success'; flagMessage.textContent = t('ssrfProtocol.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) { window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'ssrf', level: 'level2' }, '*'); }
+                } else { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = result.message || t('ssrfProtocol.flagError'); }
+            } catch (error) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('ssrfProtocol.networkError'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Secret - Hidden API Discovery</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 220px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .challenge-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; margin: 0 auto; }
+        .info-box { background: rgba(212, 175, 55, 0.1); border-left: 3px solid var(--color-gold); padding: var(--spacing-sm); margin-bottom: var(--spacing-md); border-radius: 4px; }
+        .info-box p { margin: 0; color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.6; }
+        .info-box strong { color: var(--color-gold); }
+
+        .orders-table-wrapper { overflow-x: auto; }
+        .orders-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .orders-table th { background: rgba(212, 175, 55, 0.15); color: var(--color-gold); padding: 10px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid rgba(212, 175, 55, 0.3); }
+        .orders-table td { padding: 10px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: var(--color-text-primary); }
+        .orders-table tr:hover td { background: rgba(212, 175, 55, 0.05); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; font-family: var(--font-display); }
+        .tips-box ul { margin: 0; padding-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+
+        @media (max-width: 768px) { .flag-input-inline { width: 160px; } }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="idor.title">前端的秘密 - 隐藏接口发现</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="idor.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="idor.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="challenge-container">
+            <div class="info-box">
+                <p><strong data-i18n="idor.scenario">场景：</strong><span id="scenario-desc" data-i18n="idor.scenarioDesc">你是当前登录的商家，以下是你的订单列表。收件人信息已脱敏处理。</span></p>
+            </div>
+
+            <!-- 订单表格（仅脱敏展示，无操作列） -->
+            <div class="orders-table-wrapper">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="idor.colOrderNo">订单编号</th>
+                            <th data-i18n="idor.colOrderTime">订单时间</th>
+                            <th data-i18n="idor.colProduct">商品名称</th>
+                            <th data-i18n="idor.colPrice">价格</th>
+                            <th data-i18n="idor.colRecipient">收件人</th>
+                            <th data-i18n="idor.colPhone">手机号</th>
+                            <th data-i18n="idor.colAddress">地址</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                        <tr><td colspan="7" style="text-align:center; color: var(--color-text-secondary);" data-i18n="idor.loading">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="idor.tips">提示</h3>
+            <ul>
+                <li data-i18n="idor.tip1">这个页面只展示了脱敏信息，看起来很安全……</li>
+                <li data-i18n="idor.tip2">前端的代码真的只包含你看到的功能吗？</li>
+                <li data-i18n="idor.tip3">试着查看页面源代码，也许开发者留下了什么</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'idor.title': '前端的秘密 - 隐藏接口发现',
+                'idor.flagPlaceholder': '输入 Flag...',
+                'idor.submit': '提交',
+                'idor.scenario': '场景：',
+                'idor.scenarioDesc': '你是当前登录的商家，以下是你的订单列表。收件人信息已脱敏处理。',
+                'idor.colOrderNo': '订单编号',
+                'idor.colOrderTime': '订单时间',
+                'idor.colProduct': '商品名称',
+                'idor.colPrice': '价格',
+                'idor.colRecipient': '收件人',
+                'idor.colPhone': '手机号',
+                'idor.colAddress': '地址',
+                'idor.loading': '加载中...',
+                'idor.tips': '提示',
+                'idor.tip1': '这个页面只展示了脱敏信息，看起来很安全……',
+                'idor.tip2': '前端的代码真的只包含你看到的功能吗？',
+                'idor.tip3': '试着查看页面源代码，也许开发者留下了什么',
+                'idor.congrats': '恭喜！前端的秘密关卡完成！',
+                'idor.enterFlag': '请输入 Flag',
+                'idor.flagError': 'Flag 不正确',
+                'idor.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'idor.title': 'Frontend\'s Secret - Hidden API Discovery',
+                'idor.flagPlaceholder': 'Enter Flag...',
+                'idor.submit': 'Submit',
+                'idor.scenario': 'Scenario:',
+                'idor.scenarioDesc': 'You are the logged-in merchant. Below are your orders. Recipient info is masked.',
+                'idor.colOrderNo': 'Order No.',
+                'idor.colOrderTime': 'Order Time',
+                'idor.colProduct': 'Product',
+                'idor.colPrice': 'Price',
+                'idor.colRecipient': 'Recipient',
+                'idor.colPhone': 'Phone',
+                'idor.colAddress': 'Address',
+                'idor.loading': 'Loading...',
+                'idor.tips': 'Tips',
+                'idor.tip1': 'This page only shows masked info, seems safe...',
+                'idor.tip2': 'Does the frontend code really only contain what you see?',
+                'idor.tip3': 'Try viewing the page source. Maybe the developer left something behind.',
+                'idor.congrats': 'Congratulations! Frontend\'s Secret challenge completed!',
+                'idor.enterFlag': 'Please enter Flag',
+                'idor.flagError': 'Incorrect flag',
+                'idor.networkError': 'Network error, please try again later'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            return headers;
+        }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            loadOrders();
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=access-control&vul_level=level3');
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) {}
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'access-control', vul_level: 'level3', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'access-control', level: 'level3', status: status }, '*');
+                }
+            } catch (error) {}
+        }
+
+        function bindEvents() {
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function loadOrders() {
+            try {
+                const response = await fetch('/api/challenge/access/idor/orders', {
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+                const tbody = document.getElementById('orders-tbody');
+
+                if (result.success && result.orders && result.orders.length > 0) {
+                    let html = '';
+                    for (const order of result.orders) {
+                        html += `<tr>
+                            <td><code>${order.orderNo}</code></td>
+                            <td>${order.orderTime}</td>
+                            <td>${order.productName}</td>
+                            <td>&yen;${Number(order.price).toFixed(2)}</td>
+                            <td>${order.recipientName}</td>
+                            <td>${order.recipientPhone}</td>
+                            <td>${order.recipientAddress}</td>
+                        </tr>`;
+                    }
+                    tbody.innerHTML = html;
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--color-text-secondary);">暂无订单数据</td></tr>';
+                }
+            } catch (error) {
+                document.getElementById('orders-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--color-danger);">' + t('idor.networkError') + '</td></tr>';
+            }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('idor.enterFlag'); return; }
+
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'access-control', vul_level: 'level3', flag: submittedFlag })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('idor.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'access-control', level: 'level3' }, '*');
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('idor.flagError');
+                }
+            } catch (error) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('idor.networkError'); }
+        }
+
+        /*
+         * ============================================================
+         * [DEV NOTE] Order detail decryption - removed from UI
+         * Kept here for future integration with admin panel.
+         * API endpoint: POST /api/challenge/access/idor/order/detail
+         * Request body: { "orderNo": "2026050234561" }
+         * Headers: Authorization: Bearer <token>
+         * Response: { success: true, recipientName: "...", recipientPhone: "...", recipientAddress: "..." }
+         * ============================================================
+         *
+         * async function decryptOrder(orderNo) {
+         *     const response = await fetch('/api/challenge/access/idor/order/detail', {
+         *         method: 'POST',
+         *         headers: getAuthHeaders(),
+         *         body: JSON.stringify({ orderNo: orderNo })
+         *     });
+         *     const data = await response.json();
+         *     if (data.success) {
+         *         console.log('Decrypted:', data.recipientName, data.recipientPhone, data.recipientAddress);
+         *     }
+         *     return data;
+         * }
+         */
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

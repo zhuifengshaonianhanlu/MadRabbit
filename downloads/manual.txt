@@ -1,0 +1,12 @@
+=== System User Manual ===
+
+1. Getting Started
+   - Login to the dashboard
+   - Navigate to File Management
+
+2. File Operations
+   - Upload: Click 'Upload' button
+   - Download: Select file and click 'Download'
+
+3. Support
+   Contact: support@example.com

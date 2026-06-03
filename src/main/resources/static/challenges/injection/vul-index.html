@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL注入 - 关卡挑战</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        /* ====================================
+           CSS Variables & Reset
+           ==================================== */
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-bg-deep: #050505;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-bronze: #cd7f32;
+            --color-success: #22c55e;
+            --color-warning: #ff9500;
+            --color-danger: #ff2a2a;
+            
+            --font-display: "Georgia", "Times New Roman", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+
+        /* ====================================
+           Navigation Bar (从 index.html 复制)
+           ==================================== */
+        .navbar {
+            position: relative;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            padding: var(--spacing-md) var(--spacing-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .brand-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        /* ====================================
+           Layout Styles
+           ==================================== */
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--color-bg-dark);
+            color: var(--color-text-primary);
+            font-family: var(--font-body);
+            min-height: 100vh;
+        }
+
+        .main-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ====================================
+           Sidebar - 关卡列表
+           ==================================== */
+        .sidebar {
+            width: 320px;
+            background: rgba(10, 10, 10, 0.95);
+            border-right: 1px solid rgba(212, 175, 55, 0.1);
+            padding-top: var(--spacing-lg);
+            padding-left: var(--spacing-md);
+            padding-right: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--color-gold);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.85rem;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .challenge-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .challenge-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 6px;
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: var(--spacing-sm);
+            position: relative;
+        }
+
+        .challenge-item:hover {
+            border-color: rgba(212, 175, 55, 0.3);
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .challenge-item.active {
+            border-color: var(--color-gold);
+            background: rgba(212, 175, 55, 0.1);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .challenge-item.completed {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .challenge-item.in-progress {
+            border-color: rgba(212, 175, 55, 0.3);
+        }
+
+        .challenge-item.not-started {
+            cursor: pointer;
+        }
+
+        .challenge-item-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .challenge-item-icon {
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .challenge-item.completed .challenge-item-icon {
+            color: var(--color-success);
+        }
+
+        .challenge-item.in-progress .challenge-item-icon {
+            color: var(--color-gold);
+        }
+
+        .challenge-item.not-started .challenge-item-icon {
+            color: var(--color-text-secondary);
+        }
+
+        .challenge-item-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
+        .challenge-item-status {
+            position: absolute;
+            right: var(--spacing-md);
+            bottom: var(--spacing-sm);
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            z-index: 1;
+        }
+
+        .status-completed {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--color-success);
+        }
+
+        .status-in-progress {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+        }
+
+        .status-not-started {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--color-text-secondary);
+        }
+
+        .challenge-item-desc {
+            font-size: 0.8rem;
+            color: var(--color-text-secondary);
+            margin-top: var(--spacing-xs);
+            padding-right: 70px;
+        }
+
+        /* ====================================
+           Main Content - 关卡详情
+           ==================================== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部区域 - 漏洞分类标题 + 进度条 */
+        .top-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .vuln-type-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            font-size: 0.8rem;
+            color: var(--color-text-secondary);
+        }
+
+        .breadcrumb a {
+            color: var(--color-gold);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--color-gold-light);
+        }
+
+        .breadcrumb-separator {
+            color: var(--color-text-secondary);
+            opacity: 0.6;
+        }
+
+        .vuln-type-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .vuln-type-icon {
+            font-size: 1.6rem;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.3));
+        }
+
+        .vuln-type-title {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+        }
+
+        /* 进度条容器 */
+        .progress-container {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 6px;
+            padding: var(--spacing-xs) var(--spacing-lg);
+            min-width: 640px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+        }
+
+        .progress-bar-wrapper {
+            position: relative;
+        }
+
+        .progress-track {
+            height: 10px;
+            background: rgba(212, 175, 55, 0.05);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, 
+                rgba(212, 175, 55, 0.8) 0%, 
+                var(--color-gold) 50%, 
+                rgba(244, 207, 87, 1.2) 100%);
+            border-radius: 5px;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.3) 50%,
+                transparent 100%
+            );
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-glow {
+            position: absolute;
+            top: -1px;
+            right: -2px;
+            width: 5px;
+            height: 12px;
+            background: radial-gradient(ellipse, rgba(244, 207, 87, 1) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(2px);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .content-body {
+            flex: 1;
+            display: flex;
+            padding-left: var(--spacing-lg);
+            padding-right: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            gap: var(--spacing-md);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* 左侧关卡列表容器 */
+        .challenges-panel {
+            width: 320px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        /* 右侧内容区域 */
+        .content-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: stretch;
+            justify-content: stretch;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .development-message {
+            font-size: 2rem;
+            color: var(--color-text-secondary);
+            text-align: center;
+        }
+
+        /* ====================================
+           Flag Submit Form Styles (内联布局)
+           ==================================== */
+        .header-section {
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 2px solid transparent;
+            border-image: linear-gradient(90deg, transparent, var(--color-gold), transparent) 1;
+            padding: var(--spacing-sm) 0;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .header-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 var(--spacing-lg);
+        }
+
+        .header-title-row h1 {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .flag-submit-form {
+            display: flex;
+            gap: var(--spacing-xs);
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 4px;
+            border: 1px solid rgba(212, 175, 55, 0.15);
+        }
+
+        .flag-input-inline {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 4px;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            color: var(--color-text-primary);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            width: 180px;
+            transition: all 0.3s ease;
+        }
+
+        .flag-input-inline:focus {
+            outline: none;
+            border-color: var(--color-gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .flag-submit-btn-small {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            border-radius: 4px;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: 0.85rem;
+        }
+
+        .flag-submit-btn-small:hover {
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(212, 175, 55, 0.4);
+        }
+
+        .flag-message-inline {
+            font-size: 0.8rem;
+            margin-left: var(--spacing-xs);
+            min-height: 1.2em;
+        }
+
+        .flag-message-inline.success {
+            color: var(--color-success);
+        }
+
+        .flag-message-inline.error {
+            color: var(--color-danger);
+        }
+
+        /* ====================================
+           Level 1 Challenge Styles
+           ==================================== */
+        .level1-content h1 {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--color-gold);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .login-form-container {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 8px;
+            padding: var(--spacing-lg);
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--color-gold);
+        }
+
+        .form-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 4px;
+            padding: var(--spacing-sm);
+            color: var(--color-text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--color-gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            border-radius: 4px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: var(--spacing-sm);
+        }
+
+        .login-btn:hover {
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(212, 175, 55, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-feedback {
+            margin-top: var(--spacing-md);
+            padding: var(--spacing-sm);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            text-align: center;
+            min-height: 1.5em;
+        }
+
+        .login-feedback.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--color-success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .login-feedback.error {
+            background: rgba(255, 42, 42, 0.2);
+            color: var(--color-danger);
+            border: 1px solid rgba(255, 42, 42, 0.3);
+        }
+
+        .content-display {
+            width: 100%;
+            flex: 1;
+            padding: 0;
+            overflow: hidden;
+            background: rgba(10, 10, 10, 0.9);
+            border-radius: 6px;
+            min-height: 0;
+        }
+        
+        .content-display.with-padding {
+            padding: var(--spacing-lg);
+            overflow-y: auto;
+        }
+
+        .content-display h1 {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--color-gold);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .content-display h2 {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--color-gold-light);
+            margin-top: var(--spacing-lg);
+            margin-bottom: var(--spacing-sm);
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .content-display h3 {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-top: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .content-display p {
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .content-display strong {
+            color: var(--color-gold);
+            font-weight: 600;
+        }
+
+        .content-display code {
+            background: rgba(212, 175, 55, 0.1);
+            color: var(--color-gold-light);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .content-display pre {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 6px;
+            padding: var(--spacing-sm);
+            margin: var(--spacing-sm) 0;
+            overflow-x: auto;
+        }
+
+        .content-display pre code {
+            background: none;
+            color: var(--color-text-primary);
+            padding: 0;
+            font-size: 0.85rem;
+        }
+
+        .content-display ul, .content-display ol {
+            margin-left: var(--spacing-lg);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .content-display li {
+            font-size: 0.95rem;
+            line-height: 1.7;
+            color: var(--color-text-primary);
+            margin-bottom: 6px;
+        }
+
+        .content-display li::marker {
+            color: var(--color-gold);
+        }
+
+        .content-display a {
+            color: var(--color-gold);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            border-bottom: 1px solid transparent;
+        }
+
+        .content-display a:hover {
+            color: var(--color-gold-light);
+            border-bottom-color: var(--color-gold-light);
+        }
+
+        .content-display hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .content-display blockquote {
+            background: rgba(212, 175, 55, 0.05);
+            border-left: 3px solid var(--color-gold);
+            padding: var(--spacing-sm) var(--spacing-md);
+            margin: var(--spacing-sm) 0;
+            font-style: italic;
+            color: var(--color-text-secondary);
+        }
+
+        .content-display table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--spacing-sm) 0;
+        }
+
+        .content-display th, .content-display td {
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            text-align: left;
+        }
+
+        .content-display th {
+            background: rgba(212, 175, 55, 0.1);
+            color: var(--color-gold);
+            font-weight: 600;
+        }
+
+        /* 加载状态 */
+        .loading-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-secondary);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(212, 175, 55, 0.2);
+            border-top-color: var(--color-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Level0 完成提示浮框 */
+        .level0-complete-toast {
+            position: fixed;
+            bottom: 80px;
+            right: 40px;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95));
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4);
+            z-index: 1000;
+            animation: toastSlideIn 0.5s ease-out, toastPulse 2s ease-in-out infinite;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .level0-complete-toast i {
+            font-size: 1.5rem;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes toastPulse {
+            0%, 100% { box-shadow: 0 8px 32px rgba(34, 197, 94, 0.4); }
+            50% { box-shadow: 0 8px 48px rgba(34, 197, 94, 0.6); }
+        }
+
+        /* Level0 完成按钮样式 */
+        .level0-complete-section {
+            margin-top: var(--spacing-xl);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            text-align: center;
+        }
+
+        .level0-complete-btn {
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            color: var(--color-bg-dark);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .level0-complete-btn:hover {
+            background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+        }
+
+        .level0-complete-btn:active {
+            transform: translateY(0);
+        }
+
+        .level0-complete-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .level0-complete-btn i {
+            font-size: 1.2rem;
+        }
+
+        /* ====================================
+           Background Effects Fix
+           ==================================== */
+        .bg-gradient,
+        .bg-grid {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: -1 !important;
+            pointer-events: none !important;
+        }
+
+        /* ====================================
+           Responsive Design
+           ==================================== */
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+            }
+            
+            .top-section {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--spacing-md);
+            }
+            
+            .progress-container {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .content-body {
+                flex-direction: column;
+            }
+            
+            .challenges-panel {
+                width: 100%;
+                max-height: 300px;
+            }
+            
+            /* 平板端标题样式 */
+            .header-title-row h1 {
+                font-size: 1.6rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .header-section {
+                padding: var(--spacing-sm) 0;
+                margin-bottom: var(--spacing-md);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                padding-top: var(--spacing-md);
+            }
+            
+            .vuln-type-title {
+                font-size: 1.5rem;
+            }
+            
+            .development-message {
+                font-size: 1.5rem;
+            }
+            
+            /* 移动端标题样式 - 确保不换行 */
+            .header-title-row h1 {
+                font-size: 1.4rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            /* 移动端调整 Flag 表单布局 */
+            .header-title-row {
+                flex-wrap: wrap;
+                gap: var(--spacing-xs);
+            }
+            
+            .flag-submit-form {
+                width: 100%;
+                justify-content: center;
+                margin-top: var(--spacing-xs);
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 marked.js 来解析 Markdown -->
+    <script src="https://unpkg.com/marked@4.3.0/marked.min.js"></script>
+</head>
+<body>
+    <!-- 背景效果 -->
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+    
+    <!-- 顶部导航栏容器 -->
+    <div id="navbar-container"></div>
+    
+    <div class="main-layout">
+        <!-- 右侧主要内容 -->
+        <main class="main-content">
+            <!-- 顶部区域：漏洞分类标题 + 进度条 -->
+            <div class="top-section">
+                <div class="vuln-type-wrapper">
+                    <!-- 面包屑导航 -->
+                    <nav class="breadcrumb">
+                        <a href="/index.html" data-i18n="nav.home">首页</a>
+                        <span class="breadcrumb-separator">›</span>
+                        <span data-i18n="vulnType.injection">SQL注入</span>
+                    </nav>
+
+                    <!-- 漏洞类型名称和图标 -->
+                    <div class="vuln-type-header">
+                        <i class="fas fa-database vuln-type-icon"></i>
+                        <h1 class="vuln-type-title" id="vuln-type-title" data-i18n="vulnType.injection">SQL注入</h1>
+                    </div>
+                </div>
+                
+                <!-- 进度条容器 -->
+                <div class="progress-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="color: var(--color-gold); font-weight: 600; font-size: 0.85rem;" data-i18n="common.progress">学习进度</span>
+                        <div style="display: flex; gap: 32px;">
+                            <div style="text-align: center;">
+                                <span style="color: var(--color-gold); font-size: 1.3rem; font-weight: 700; display: block;" id="completed-count">0</span>
+                                <span style="color: var(--color-text-secondary); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em;" data-i18n="common.completedLabel">已完成</span>
+                            </div>
+                            <div style="text-align: center;">
+                                <span style="color: var(--color-gold); font-size: 1.3rem; font-weight: 700; display: block;" id="total-count">13</span>
+                                <span style="color: var(--color-text-secondary); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em;" data-i18n="common.totalLabel">总计关卡</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-track">
+                            <div id="progress-bar" class="progress-fill" style="width: 0%;">
+                                <div class="progress-glow"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 内容主体：左侧关卡列表 + 右侧内容面板 -->
+            <div class="content-body">
+                <!-- 左侧关卡列表 -->
+                <div class="challenges-panel">
+                    <!-- level0 -->
+                    <div class="challenge-item not-started" data-challenge="level0">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon">
+                                <i class="fas fa-book-open"></i>
+                            </div>
+                            <div class="challenge-item-title" data-i18n="challenges.level0">获取秘籍</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level0Desc">学习SQL注入攻击核心概念和防护策略</div>
+                    </div>
+
+                    <!-- level1 -->
+                    <div class="challenge-item not-started" data-challenge="level1">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon">
+                                <i class="fas fa-sign-in-alt"></i>
+                            </div>
+                            <div class="challenge-item-title" data-i18n="challenges.level1">SQL注入-登录绕过</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level1Desc">SQL注入绕过登录验证</div>
+                    </div>
+
+                    <!-- level2 -->
+                    <div class="challenge-item not-started" data-challenge="level2">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="challenge-item-title" data-i18n="challenges.level2">SQL注入-数据泄露</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level2Desc">SQL注入获取隐藏数据</div>
+                    </div>
+
+                    <!-- level3 -->
+                    <div class="challenge-item not-started" data-challenge="level3">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon"><i class="fas fa-hashtag"></i></div>
+                            <div class="challenge-item-title" data-i18n="challenges.level3">MyBatis注入-数字型</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level3Desc">WHERE age = ${age}</div>
+                    </div>
+
+                    <!-- level4 -->
+                    <div class="challenge-item not-started" data-challenge="level4">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon"><i class="fas fa-font"></i></div>
+                            <div class="challenge-item-title" data-i18n="challenges.level4">MyBatis注入-字符型</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level4Desc">WHERE name = '${name}'</div>
+                    </div>
+
+                    <!-- level5 -->
+                    <div class="challenge-item not-started" data-challenge="level5">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon"><i class="fas fa-search"></i></div>
+                            <div class="challenge-item-title" data-i18n="challenges.level5">MyBatis注入-LIKE查询</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level5Desc">LIKE '%${name}%'</div>
+                    </div>
+
+                    <!-- level6 -->
+                    <div class="challenge-item not-started" data-challenge="level6">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon"><i class="fas fa-table"></i></div>
+                            <div class="challenge-item-title" data-i18n="challenges.level6">MyBatis注入-动态表名</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level6Desc">FROM logs_${tableName}</div>
+                    </div>
+
+                    <!-- level7 -->
+                    <div class="challenge-item not-started" data-challenge="level7">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon"><i class="fas fa-sort"></i></div>
+                            <div class="challenge-item-title" data-i18n="challenges.level7">MyBatis注入-ORDER BY</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level7Desc">ORDER BY ${columnName}</div>
+                    </div>
+
+                    <!-- level8 -->
+                    <div class="challenge-item not-started" data-challenge="level8">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon"><i class="fas fa-list-ol"></i></div>
+                            <div class="challenge-item-title" data-i18n="challenges.level8">MyBatis注入-IN条件</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level8Desc">WHERE id IN (${ids})</div>
+                    </div>
+
+                    <!-- level9 -->
+                    <div class="challenge-item not-started" data-challenge="level9">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon">
+                                <i class="fas fa-eye-slash"></i>
+                            </div>
+                            <div class="challenge-item-title" data-i18n="challenges.level9">SQL注入-盲注</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level9Desc">name = '${name}' (Blind)</div>
+                    </div>
+
+                    <!-- level10 -->
+                    <div class="challenge-item not-started" data-challenge="level10">
+                        <div class="challenge-item-header">
+                            <div class="challenge-item-icon">
+                                <i class="fas fa-flag-checkered"></i>
+                            </div>
+                            <div class="challenge-item-title" data-i18n="challenges.level10">终结</div>
+                            <span class="challenge-item-status status-not-started" data-i18n="common.notStarted">未开始</span>
+                        </div>
+                        <div class="challenge-item-desc" data-i18n="challenges.level10Desc">总结SQL注入攻击防护知识</div>
+                    </div>
+                </div>
+
+                <!-- 右侧内容面板 -->
+                <div class="content-panel">
+                    <div id="content-display" class="content-display">
+                        <div class="development-message">开发中....</div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- 底部装饰容器 -->
+    <div id="footer-container"></div>
+
+    <!-- 引入配置文件和组件加载器 -->
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script src="/js/component-loader.js"></script>
+    
+    <script>
+        // 页面加载时检查登录状态
+        (function checkAuth() {
+            const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+            if (!token) {
+                // 未登录，重定向到登录页面
+                window.location.href = '/login.html';
+            }
+        })();
+    
+        // 当前关卡状态
+        let currentChallenge = 'level0';  // 默认进入"获取秘籍"
+        let completedChallenges = ['level0'];
+
+        // DOM 元素 - 将在 init 中初始化
+        let challengeItems;
+
+        // 国际化翻译字典
+        const i18nTranslations = {
+            'zh-CN': {
+                'nav.home': '首页',
+                'vulnType.injection': 'SQL注入',
+                'challenges.level0': '获取秘籍',
+                'challenges.level0Desc': '学习SQL注入攻击核心概念和防护策略',
+                'challenges.level1': 'SQL注入-登录绕过',
+                'challenges.level1Desc': 'SQL注入绕过登录验证',
+                'challenges.level2': 'SQL注入-数据泄露',
+                'challenges.level2Desc': 'SQL注入获取隐藏数据',
+                'challenges.level3': 'MyBatis注入-数字型',
+                'challenges.level3Desc': 'WHERE age = ${age}',
+                'challenges.level4': 'MyBatis注入-字符型',
+                'challenges.level4Desc': "WHERE name = '${name}'",
+                'challenges.level5': 'MyBatis注入-LIKE查询',
+                'challenges.level5Desc': "LIKE '%${name}%'",
+                'challenges.level6': 'MyBatis注入-动态表名',
+                'challenges.level6Desc': 'FROM logs_${tableName}',
+                'challenges.level7': 'MyBatis注入-ORDER BY',
+                'challenges.level7Desc': 'ORDER BY ${columnName}',
+                'challenges.level8': 'MyBatis注入-IN条件',
+                'challenges.level8Desc': 'WHERE id IN (${ids})',
+                'challenges.level9': 'SQL注入-盲注',
+                'challenges.level9Desc': 'name = \'${name}\' (Blind)',
+                'challenges.level10': '终结',
+                'challenges.level10Desc': '总结SQL注入攻击防护知识',
+                'common.notStarted': '未开始',
+                'common.inProgress': '进行中',
+                'common.completed': '已完成',
+                'common.progress': '学习进度',
+                'common.completedLabel': '已完成',
+                'common.totalLabel': '总计关卡',
+                'level0.completeBtn': '我已经掌握',
+                'level0.completedBtn': '已完成',
+                'level0.submitting': '提交中...',
+                'level0.toast': '看来你已经入门了！',
+                'level10.completeBtn': '出关',
+                'level10.completedBtn': '已出关',
+                'level10.toast': '恭喜你通关了SQL注入！'
+            },
+            'en-US': {
+                'nav.home': 'Home',
+                'vulnType.injection': 'SQL Injection',
+                'challenges.level0': 'Get Strategy Guide',
+                'challenges.level0Desc': 'Learn SQL injection attack concepts and defense strategies',
+                'challenges.level1': 'SQL Injection - Login Bypass',
+                'challenges.level1Desc': 'SQL injection to bypass login authentication',
+                'challenges.level2': 'SQL Injection - Data Leakage',
+                'challenges.level2Desc': 'SQL injection to obtain hidden data',
+                'challenges.level3': 'MyBatis Injection - Numeric',
+                'challenges.level3Desc': 'WHERE age = ${age}',
+                'challenges.level4': 'MyBatis Injection - String',
+                'challenges.level4Desc': "WHERE name = '${name}'",
+                'challenges.level5': 'MyBatis Injection - LIKE',
+                'challenges.level5Desc': "LIKE '%${name}%'",
+                'challenges.level6': 'MyBatis Injection - Table Name',
+                'challenges.level6Desc': 'FROM logs_${tableName}',
+                'challenges.level7': 'MyBatis Injection - ORDER BY',
+                'challenges.level7Desc': 'ORDER BY ${columnName}',
+                'challenges.level8': 'MyBatis Injection - IN Clause',
+                'challenges.level8Desc': 'WHERE id IN (${ids})',
+                'challenges.level9': 'SQL Injection - Blind',
+                'challenges.level9Desc': 'name = \'${name}\' (Blind)',
+                'challenges.level10': 'Finale',
+                'challenges.level10Desc': 'Summary of SQL injection attack defense',
+                'common.notStarted': 'Not Started',
+                'common.inProgress': 'In Progress',
+                'common.completed': 'Completed',
+                'common.progress': 'Learning Progress',
+                'common.completedLabel': 'Completed',
+                'common.totalLabel': 'Total Levels',
+                'level0.completeBtn': 'I\'ve Mastered It',
+                'level0.completedBtn': 'Completed',
+                'level0.submitting': 'Submitting...',
+                'level0.toast': 'You have mastered the basics!',
+                'level10.completeBtn': 'Complete',
+                'level10.completedBtn': 'Completed',
+                'level10.toast': 'Congratulations! You\'ve completed SQL Injection!'
+            }
+        };
+
+        // 应用国际化翻译
+        function applyI18n() {
+            const lang = getCurrentLang();
+            
+            // 查找所有带有 data-i18n 属性的元素
+            const elements = document.querySelectorAll('[data-i18n]');
+            elements.forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (i18nTranslations[lang] && i18nTranslations[lang][key]) {
+                    element.textContent = i18nTranslations[lang][key];
+                }
+            });
+        }
+
+        // 初始化
+        function init() {
+            // 确保 DOM 完全加载后再获取元素
+            challengeItems = document.querySelectorAll('.challenge-item');
+
+            bindEvents();
+            updateProgress();
+            applyI18n();  // 应用国际化
+            // 默认选中level0
+            selectChallenge('level0');
+
+            // 监听语言切换事件
+            window.addEventListener('languageChanged', function(event) {
+                applyI18n();  // 重新应用国际化
+                
+                // 如果当前是level0或level10，重新加载 markdown 内容
+                if (currentChallenge === 'level0' || currentChallenge === 'level10') {
+                    displayChallengeContent(currentChallenge);
+                }
+
+                // 向 iframe 发送语言切换消息
+                const iframe1 = document.getElementById('level1-iframe');
+                if (iframe1 && iframe1.contentWindow) {
+                    iframe1.contentWindow.postMessage({
+                        type: 'languageChanged',
+                        language: event.detail.language
+                    }, '*');
+                }
+
+                const iframe2 = document.getElementById('level2-iframe');
+                if (iframe2 && iframe2.contentWindow) {
+                    iframe2.contentWindow.postMessage({
+                        type: 'languageChanged',
+                        language: event.detail.language
+                    }, '*');
+                }
+
+                // level3-level8 iframe 语言切换
+                for (let i = 3; i <= 8; i++) {
+                    const iframe = document.getElementById(`level${i}-iframe`);
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage({ type: 'languageChanged', language: event.detail.language }, '*');
+                    }
+                }
+
+                const iframe9 = document.getElementById('level9-iframe');
+                if (iframe9 && iframe9.contentWindow) {
+                    iframe9.contentWindow.postMessage({
+                        type: 'languageChanged',
+                        language: event.detail.language
+                    }, '*');
+                }
+
+            });
+            
+            // 监听来自 iframe 的消息（关卡状态变化通知）
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'challengeCompleted') {
+                    // 刷新进度
+                    fetchAndUpdateProgress();
+                }
+                if (event.data && event.data.type === 'challengeStatusChanged') {
+                    // 刷新进度和关卡列表状态
+                    fetchAndUpdateProgress();
+                }
+            });
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            
+            // 关卡项目点击事件 - 所有关卡都可以无门槛进入
+            challengeItems.forEach((item, index) => {
+                const challengeId = item.dataset.challenge;
+                
+                item.addEventListener('click', function(event) {
+                    event.preventDefault(); // 阻止默认行为
+                    const clickedChallengeId = this.dataset.challenge;
+                    
+                    // 直接选择关卡，无需检查锁定状态
+                    selectChallenge(clickedChallengeId);
+                });
+            });
+        }
+            
+        // 选择关卡 - 只添加选中效果，不修改关卡状态
+        function selectChallenge(challengeId) {
+            
+            // 1. 清除所有关卡的选中效果（active类），但不修改状态
+            challengeItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // 2. 设置当前关卡为选中效果
+            const selectedItem = document.querySelector(`[data-challenge="${challengeId}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('active');
+            }
+            
+            // 3. 更新当前关卡变量
+            currentChallenge = challengeId;
+        
+            // 4. 显示关卡内容
+            displayChallengeContent(challengeId);
+        }
+        
+        // 获取原始图标样式（用于还原）
+        function getOriginalIconClass(challengeId) {
+            const iconMap = {
+                'level0': 'fas fa-book-open',
+                'level1': 'fas fa-sign-in-alt',
+                'level2': 'fas fa-database',
+                'level3': 'fas fa-hashtag',
+                'level4': 'fas fa-font',
+                'level5': 'fas fa-search',
+                'level6': 'fas fa-table',
+                'level7': 'fas fa-sort',
+                'level8': 'fas fa-list-ol',
+                'level9': 'fas fa-eye-slash',
+                'level10': 'fas fa-flag-checkered'
+            };
+            return iconMap[challengeId] || 'fas fa-question';
+        }
+
+        // 显示关卡内容
+        async function displayChallengeContent(challengeId) {
+        
+            const contentDisplay = document.getElementById('content-display');
+            if (!contentDisplay) {
+                console.error('找不到 content-display 元素');
+                return;
+            }
+        
+            if (challengeId === 'level0') {
+                // "获取秘籍"显示实际的 markdown 内容
+                contentDisplay.classList.add('with-padding');
+                
+                // 检查并更新关卡状态为"进行中"
+                checkAndUpdateLevel0Status();
+                
+                const lang = getCurrentLang();
+                        
+                // 显示加载动画
+                contentDisplay.innerHTML = `
+                    <div class="loading-message">
+                        <div class="loading-spinner"></div>
+                        <div>${lang === 'zh-CN' ? '加载中...' : 'Loading...'}</div>
+                    </div>
+                `;
+        
+                try {
+                    // 获取当前语言对应的 markdown 文件
+                    const markdownPath = lang === 'zh-CN' ? '/knowledge/injection/injection_zh_CN.md' : '/knowledge/injection/injection_en_US.md';
+        
+                    const response = await fetch(markdownPath);
+        
+                    if (!response.ok) {
+                        throw new Error('Failed to load markdown file');
+                    }
+        
+                    const markdownContent = await response.text();
+        
+                    // 等待 marked.js 加载完成
+                    let checkCount = 0;
+                    while (typeof marked === 'undefined' && checkCount < 50) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        checkCount++;
+                    }
+                            
+                    if (typeof marked === 'undefined') {
+                        console.error('marked.js 未加载，等待超时');
+                        throw new Error('marked.js is not loaded after waiting');
+                    }
+        
+                    const htmlContent = marked.parse(markdownContent);
+        
+                    // 添加完成按钮
+                    const completeBtnHtml = `
+                        <div class="level0-complete-section">
+                            <button id="level0-complete-btn" class="level0-complete-btn">
+                                <i class="fas fa-check-circle"></i>
+                                <span>${lang === 'zh-CN' ? '我已经掌握' : 'I GET IT'}</span>
+                            </button>
+                        </div>
+                    `;
+                    
+                    contentDisplay.innerHTML = htmlContent + completeBtnHtml;
+                    
+                    // 绑定按钮点击事件
+                    setupLevel0CompleteButton();
+                } catch (error) {
+                    console.error('加载 markdown 错误:', error);
+                    const errorLang = getCurrentLang();
+                    const markedStatus = typeof marked !== 'undefined' ? 'loaded' : 'not loaded';
+                    contentDisplay.innerHTML = `
+                        <div class="development-message">
+                            <div style="color: var(--color-danger); margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-exclamation-circle"></i> ${errorLang === 'zh-CN' ? '加载失败' : 'Failed to Load'}
+                            </div>
+                            <div style="font-size: 1rem; color: var(--color-text-secondary);">
+                                ${errorLang === 'zh-CN' ? '无法加载学习资料，请稍后重试' : 'Unable to load learning materials, please try again later'}
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 10px;">
+                                ${errorLang === 'zh-CN' ? '错误详情:' : 'Error:'} ${error.message}
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--color-bronze); margin-top: 5px;">
+                                marked.js 状态：${markedStatus}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else if (challengeId === 'level1') {
+                // SQL注入-登录绕过 - 加载独立关卡页面
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level1');
+                contentDisplay.innerHTML = `
+                    <iframe 
+                        src="/challenges/injection/sql-login.html" 
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level1-iframe"
+                    ></iframe>
+                `;
+                            
+                // 监听 iframe 加载完成，延迟刷新进度（等待 iframe 内的状态更新完成）
+                const iframe = document.getElementById('level1-iframe');
+                if (iframe) {
+                    iframe.addEventListener('load', function() {
+                        // 延迟 500ms 等待 iframe 内的状态更新完成
+                        setTimeout(() => {
+                            fetchAndUpdateProgress();
+                        }, 500);
+                    });
+                }
+            } else if (challengeId === 'level2') {
+                // SQL注入-数据泄露 - 加载独立关卡页面
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level2');
+                contentDisplay.innerHTML = `
+                    <iframe 
+                        src="/challenges/injection/sql-data.html" 
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level2-iframe"
+                    ></iframe>
+                `;
+                            
+                // 监听 iframe 加载完成，延迟刷新进度（等待 iframe 内的状态更新完成）
+                const iframe = document.getElementById('level2-iframe');
+                if (iframe) {
+                    iframe.addEventListener('load', function() {
+                        // 延迟 500ms 等待 iframe 内的状态更新完成
+                        setTimeout(() => {
+                            fetchAndUpdateProgress();
+                        }, 500);
+                    });
+                }
+            } else if (challengeId === 'level3') {
+                // MyBatis注入-数字型
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level3');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-age.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level3-iframe"
+                    ></iframe>
+                `;
+
+                const iframe3 = document.getElementById('level3-iframe');
+                if (iframe3) {
+                    iframe3.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level4') {
+                // MyBatis注入-字符型
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level4');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-name.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level4-iframe"
+                    ></iframe>
+                `;
+
+                const iframe4 = document.getElementById('level4-iframe');
+                if (iframe4) {
+                    iframe4.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level5') {
+                // MyBatis注入-LIKE查询
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level5');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-like.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level5-iframe"
+                    ></iframe>
+                `;
+
+                const iframe5 = document.getElementById('level5-iframe');
+                if (iframe5) {
+                    iframe5.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level6') {
+                // MyBatis注入-动态表名
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level6');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-table.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level6-iframe"
+                    ></iframe>
+                `;
+
+                const iframe6 = document.getElementById('level6-iframe');
+                if (iframe6) {
+                    iframe6.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level7') {
+                // MyBatis注入-ORDER BY
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level7');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-order.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level7-iframe"
+                    ></iframe>
+                `;
+
+                const iframe7 = document.getElementById('level7-iframe');
+                if (iframe7) {
+                    iframe7.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level8') {
+                // MyBatis注入-IN条件
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level8');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-in.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level8-iframe"
+                    ></iframe>
+                `;
+
+                const iframe8 = document.getElementById('level8-iframe');
+                if (iframe8) {
+                    iframe8.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level9') {
+                // SQL盲注 - 加载独立关卡页面
+                contentDisplay.classList.remove('with-padding');
+                checkAndUpdateLevelStatus('level9');
+                contentDisplay.innerHTML = `
+                    <iframe
+                        src="/challenges/injection/mybatis-blind.html"
+                        style="width: 100%; height: 100%; border: none; background: transparent;"
+                        frameborder="0"
+                        id="level9-iframe"
+                    ></iframe>
+                `;
+
+                const iframe9 = document.getElementById('level9-iframe');
+                if (iframe9) {
+                    iframe9.addEventListener('load', function() {
+                        setTimeout(() => { fetchAndUpdateProgress(); }, 500);
+                    });
+                }
+            } else if (challengeId === 'level10') {
+                // 终结 - 显示总结 markdown 内容
+                contentDisplay.classList.add('with-padding');
+
+                // 检查并更新关卡状态为"进行中"
+                checkAndUpdateLevel10Status();
+                
+                const lang = getCurrentLang();
+                        
+                // 显示加载动画
+                contentDisplay.innerHTML = `
+                    <div class="loading-message">
+                        <div class="loading-spinner"></div>
+                        <div>${lang === 'zh-CN' ? '加载中...' : 'Loading...'}</div>
+                    </div>
+                `;
+        
+                try {
+                    // 获取当前语言对应的 markdown 文件
+                    const markdownPath = lang === 'zh-CN' ? '/knowledge/injection/injection_finale_zh_CN.md' : '/knowledge/injection/injection_finale_en_US.md';
+        
+                    const response = await fetch(markdownPath);
+        
+                    if (!response.ok) {
+                        throw new Error('Failed to load markdown file');
+                    }
+        
+                    const markdownContent = await response.text();
+        
+                    // 等待 marked.js 加载完成
+                    let checkCount = 0;
+                    while (typeof marked === 'undefined' && checkCount < 50) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        checkCount++;
+                    }
+                            
+                    if (typeof marked === 'undefined') {
+                        console.error('marked.js 未加载，等待超时');
+                        throw new Error('marked.js is not loaded after waiting');
+                    }
+        
+                    const htmlContent = marked.parse(markdownContent);
+        
+                    // 添加完成按钮
+                    const completeBtnHtml = `
+                        <div class="level0-complete-section">
+                            <button id="level10-complete-btn" class="level0-complete-btn">
+                                <i class="fas fa-flag-checkered"></i>
+                                <span>${lang === 'zh-CN' ? '出关' : 'Complete'}</span>
+                            </button>
+                        </div>
+                    `;
+
+                    contentDisplay.innerHTML = htmlContent + completeBtnHtml;
+
+                    // 绑定按钮点击事件
+                    setupLevel10CompleteButton();
+                } catch (error) {
+                    console.error('加载终结关卡 markdown 错误:', error);
+                    const errorLang = getCurrentLang();
+                    const markedStatus = typeof marked !== 'undefined' ? 'loaded' : 'not loaded';
+                    contentDisplay.innerHTML = `
+                        <div class="development-message">
+                            <div style="color: var(--color-danger); margin-bottom: var(--spacing-sm);">
+                                <i class="fas fa-exclamation-circle"></i> ${errorLang === 'zh-CN' ? '加载失败' : 'Failed to Load'}
+                            </div>
+                            <div style="font-size: 1rem; color: var(--color-text-secondary);">
+                                ${errorLang === 'zh-CN' ? '无法加载学习资料，请稍后重试' : 'Unable to load learning materials, please try again later'}
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 10px;">
+                                ${errorLang === 'zh-CN' ? '错误详情:' : 'Error:'} ${error.message}
+                            </div>
+                            <div style="font-size: 0.7rem; color: var(--color-bronze); margin-top: 5px;">
+                                marked.js 状态：${markedStatus}
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                // 其他关卡显示开发中消息
+                contentDisplay.classList.add('with-padding');
+                const devLang = getCurrentLang();
+                        
+                contentDisplay.innerHTML = `
+                    <div class="development-message">
+                        <div style="font-size: 2rem; color: var(--color-gold); margin-bottom: var(--spacing-md);">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div style="font-size: 1.5rem; color: var(--color-text-primary); margin-bottom: var(--spacing-sm);">
+                            ${devLang === 'zh-CN' ? '页面正在开发中' : 'Page Under Development'}
+                        </div>
+                        <div style="font-size: 1rem; color: var(--color-text-secondary);">
+                            ${devLang === 'zh-CN' ? '该关卡正在开发中，敬请期待' : 'This level is under development, stay tuned'}
+                        </div>
+                    </div>
+                `;
+            }
+                    
+        }
+
+        // 更新关卡选择状态 - 暂时不做状态切换，等待后端接口
+        function updateChallengeSelection() {
+            // TODO: 后续会根据后端接口来提供状态信息
+            // 目前保持初始状态不变
+        }
+    
+        // 从后端获取进度数据并更新进度条
+        async function fetchAndUpdateProgress() {
+            
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const response = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/progress_get?vul_type=injection`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 更新进度条
+                    updateProgressBar(data.completedCount, data.totalCount, data.progressPercent);
+                    
+                    // 更新关卡列表状态
+                    updateChallengeListStatus(data.challenges);
+                }
+                
+            } catch (error) {
+                console.error('获取进度数据失败:', error);
+                // 失败时使用默认值
+                updateProgressBar(0, 11, 0);
+            }
+        }
+        
+        // 更新进度条显示
+        function updateProgressBar(completedCount, totalCount, progressPercent) {
+            
+            const progressBar = document.getElementById('progress-bar');
+            const completedCountEl = document.getElementById('completed-count');
+            const totalCountEl = document.getElementById('total-count');
+            
+            if (progressBar) {
+                progressBar.style.width = `${progressPercent}%`;
+            }
+            
+            if (completedCountEl) {
+                completedCountEl.textContent = completedCount;
+            }
+            
+            if (totalCountEl) {
+                totalCountEl.textContent = totalCount;
+            }
+        }
+        
+        // 更新关卡列表状态
+        function updateChallengeListStatus(challenges) {
+            if (!challenges || challenges.length === 0) {
+                return;
+            }
+            
+            
+            challenges.forEach(challenge => {
+                // 后端返回的字段是 vul_level
+                const levelId = challenge.vul_level;
+                const status = challenge.status;
+                
+                const challengeItem = document.querySelector(`[data-challenge="${levelId}"]`);
+                if (!challengeItem) {
+                    return;
+                }
+                
+                // 移除所有状态类
+                challengeItem.classList.remove('completed', 'in-progress', 'not-started');
+                
+                // 更新状态图标
+                const iconContainer = challengeItem.querySelector('.challenge-item-icon i');
+                const statusEl = challengeItem.querySelector('.challenge-item-status');
+                
+                const lang = getCurrentLang();
+                
+                // 后端返回的状态是中文：已完成、进行中、未开始
+                if (status === '已完成') {
+                    challengeItem.classList.add('completed');
+                    if (iconContainer) {
+                        iconContainer.className = 'fas fa-check-circle';
+                        iconContainer.style.color = 'var(--color-success)';
+                        iconContainer.style.filter = 'drop-shadow(0 0 6px rgba(34, 197, 94, 0.6))';
+                    }
+                    if (statusEl) {
+                        statusEl.className = 'challenge-item-status status-completed';
+                        statusEl.setAttribute('data-i18n', 'common.completed');
+                        statusEl.textContent = lang === 'zh-CN' ? '已完成' : 'Completed';
+                    }
+                } else if (status === '进行中') {
+                    challengeItem.classList.add('in-progress');
+                    if (iconContainer) {
+                        const originalIconClass = getOriginalIconClass(levelId);
+                        iconContainer.className = originalIconClass;
+                        iconContainer.style.color = 'var(--color-gold)';
+                        iconContainer.style.filter = 'drop-shadow(0 0 6px rgba(212, 175, 55, 0.6))';
+                    }
+                    if (statusEl) {
+                        statusEl.className = 'challenge-item-status status-in-progress';
+                        statusEl.setAttribute('data-i18n', 'common.inProgress');
+                        statusEl.textContent = lang === 'zh-CN' ? '进行中' : 'In Progress';
+                    }
+                } else {
+                    challengeItem.classList.add('not-started');
+                    if (iconContainer) {
+                        const originalIconClass = getOriginalIconClass(levelId);
+                        iconContainer.className = originalIconClass;
+                        iconContainer.style.color = '';
+                        iconContainer.style.filter = '';
+                    }
+                    if (statusEl) {
+                        statusEl.className = 'challenge-item-status status-not-started';
+                        statusEl.setAttribute('data-i18n', 'common.notStarted');
+                        statusEl.textContent = lang === 'zh-CN' ? '未开始' : 'Not Started';
+                    }
+                }
+            });
+        }
+        
+        // 检查并更新 Level0 状态为"进行中"
+        async function checkAndUpdateLevel0Status() {
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const statusResponse = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_get?vul_type=injection&vul_level=level0`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statusResult = await statusResponse.json();
+                
+                // 如果状态是"未开始"，则更新为"进行中"
+                if (statusResult.status === '未开始') {
+                    await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            vul_type: 'injection',
+                            vul_level: 'level0',
+                            status: '进行中'
+                        })
+                    });
+                    // 刷新进度
+                    fetchAndUpdateProgress();
+                }
+            } catch (e) {
+                console.error('更新 Level0 状态失败:', e);
+            }
+        }
+        
+        // 检查并更新 Level10 状态为"进行中"
+        async function checkAndUpdateLevel10Status() {
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const statusResponse = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_get?vul_type=injection&vul_level=level10`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statusResult = await statusResponse.json();
+
+                // 如果状态是"未开始"，则更新为"进行中"
+                if (statusResult.status === '未开始') {
+                    await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            vul_type: 'injection',
+                            vul_level: 'level10',
+                            status: '进行中'
+                        })
+                    });
+                    // 刷新进度
+                    fetchAndUpdateProgress();
+                }
+            } catch (e) {
+                console.error('更新 Level10 状态失败:', e);
+            }
+        }
+        
+        // 检查并更新 Level1-9 状态为"进行中"
+        async function checkAndUpdateLevelStatus(vulLevel) {
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const statusResponse = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_get?vul_type=injection&vul_level=${vulLevel}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!statusResponse.ok) return;
+                const result = await statusResponse.json();
+                if (result.status && result.status !== '进行中' && result.status !== 'In Progress' && result.status !== '已完成' && result.status !== 'Completed') {
+                    await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            vul_type: 'injection',
+                            vul_level: vulLevel,
+                            status: '进行中'
+                        })
+                    });
+                    fetchAndUpdateProgress();
+                }
+            } catch (error) {
+                console.error(`更新${vulLevel}状态出错:`, error);
+            }
+        }
+        
+        // Level0 完成按钮处理
+        let level0Completed = false; // 防止重复触发
+        
+        async function setupLevel0CompleteButton() {
+            const btn = document.getElementById('level0-complete-btn');
+            if (!btn) {
+                console.error('找不到完成按钮');
+                return;
+            }
+            
+            // 检查当前关卡状态，如果已完成则隐藏按钮
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const statusResponse = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_get?vul_type=injection&vul_level=level0`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statusResult = await statusResponse.json();
+                
+                if (statusResult.status === '已完成') {
+                    btn.parentElement.style.display = 'none';
+                    return;
+                }
+            } catch (e) {
+                // 检查状态失败，继续设置按钮
+            }
+            
+            // 重置完成标志
+            level0Completed = false;
+            
+            // 绑定点击事件
+            btn.addEventListener('click', async function handleClick() {
+                if (level0Completed) return;
+                
+                level0Completed = true;
+                btn.disabled = true;
+                
+                const lang = getCurrentLang();
+                btn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>${lang === 'zh-CN' ? '提交中...' : 'Submitting...'}</span>
+                `;
+                
+                await markLevel0AsCompleted();
+                
+                // 更新按钮状态
+                btn.innerHTML = `
+                    <i class="fas fa-check"></i>
+                    <span>${lang === 'zh-CN' ? '已完成' : 'Completed'}</span>
+                `;
+            });
+        }
+        
+        // 标记 Level0 为已完成
+        async function markLevel0AsCompleted() {
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const response = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        vul_type: 'injection',
+                        vul_level: 'level0',
+                        status: '已完成'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success === true) {
+                    // 刷新进度条和关卡列表状态
+                    await fetchAndUpdateProgress();
+                    // 显示提示浮框
+                    showLevel0CompleteToast();
+                }
+            } catch (error) {
+                console.error('更新 Level0 状态失败:', error);
+            }
+        }
+        
+        // 显示 Level0 完成提示浮框
+        function showLevel0CompleteToast() {
+            const lang = getCurrentLang();
+            const message = lang === 'zh-CN' ? '看来你已经入门了！' : 'You have mastered the basics!';
+            
+            // 创建浮框元素
+            const toast = document.createElement('div');
+            toast.className = 'level0-complete-toast';
+            toast.innerHTML = `
+                <i class="fas fa-trophy"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // 5秒后自动消失
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideIn 0.5s ease-out reverse';
+                setTimeout(() => {
+                    toast.remove();
+                }, 500);
+            }, 5000);
+        }
+        
+        // Level10 完成按钮处理
+        let level10Completed = false; // 防止重复触发
+
+        async function setupLevel10CompleteButton() {
+            const btn = document.getElementById('level10-complete-btn');
+            if (!btn) {
+                console.error('找不到出关按钮');
+                return;
+            }
+
+            // 检查当前关卡状态，如果已完成则隐藏按钮
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const statusResponse = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_get?vul_type=injection&vul_level=level10`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const statusResult = await statusResponse.json();
+
+                if (statusResult.status === '已完成') {
+                    btn.parentElement.style.display = 'none';
+                    return;
+                }
+            } catch (e) {
+                // 检查状态失败，继续设置按钮
+            }
+
+            // 重置完成标志
+            level10Completed = false;
+
+            // 绑定点击事件
+            btn.addEventListener('click', async function handleClick() {
+                if (level10Completed) return;
+
+                level10Completed = true;
+                btn.disabled = true;
+
+                const lang = getCurrentLang();
+                btn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>${lang === 'zh-CN' ? '提交中...' : 'Submitting...'}</span>
+                `;
+
+                await markLevel10AsCompleted();
+                
+                // 更新按钮状态
+                btn.innerHTML = `
+                    <i class="fas fa-check"></i>
+                    <span>${lang === 'zh-CN' ? '已出关' : 'Completed'}</span>
+                `;
+            });
+        }
+        
+        // 标记 Level10 为已完成
+        async function markLevel10AsCompleted() {
+            try {
+                const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+                const response = await fetch(`${API_CONFIG.API_BASE_URL}/challenge/status_update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        vul_type: 'injection',
+                        vul_level: 'level10',
+                        status: '已完成'
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success === true) {
+                    // 刷新进度条和关卡列表状态
+                    await fetchAndUpdateProgress();
+                    // 显示提示浮框
+                    showLevel10CompleteToast();
+                }
+            } catch (error) {
+                console.error('更新 Level10 状态失败:', error);
+            }
+        }
+
+        // 显示 Level10 完成提示浮框
+        function showLevel10CompleteToast() {
+            const lang = getCurrentLang();
+            const message = lang === 'zh-CN' ? '恭喜你通关了SQL注入！' : 'Congratulations! You\'ve completed SQL Injection!';
+            
+            // 创建浮框元素
+            const toast = document.createElement('div');
+            toast.className = 'level0-complete-toast';
+            toast.innerHTML = `
+                <i class="fas fa-graduation-cap"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // 5秒后自动消失
+            setTimeout(() => {
+                toast.style.animation = 'toastSlideIn 0.5s ease-out reverse';
+                setTimeout(() => {
+                    toast.remove();
+                }, 500);
+            }, 5000);
+        }
+        
+        // 更新进度（兼容旧代码）
+        function updateProgress() {
+            // 调用新的异步函数
+            fetchAndUpdateProgress();
+        }
+    
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vertical Privilege Escalation - Merchant Orders</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 220px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .challenge-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; margin: 0 auto; }
+        .info-box { background: rgba(212, 175, 55, 0.1); border-left: 3px solid var(--color-gold); padding: var(--spacing-sm); margin-bottom: var(--spacing-md); border-radius: 4px; }
+        .info-box p { margin: 0; color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.6; }
+        .info-box strong { color: var(--color-gold); }
+        .role-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: 500; }
+        .role-badge.admin { background: rgba(212, 175, 55, 0.2); color: var(--color-gold); }
+        .role-badge.learner { background: rgba(154, 154, 154, 0.2); color: var(--color-text-secondary); }
+
+        .orders-table-wrapper { overflow-x: auto; margin-bottom: var(--spacing-md); }
+        .orders-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .orders-table th { background: rgba(212, 175, 55, 0.15); color: var(--color-gold); padding: 10px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid rgba(212, 175, 55, 0.3); }
+        .orders-table td { padding: 10px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: var(--color-text-primary); }
+        .orders-table tr:hover td { background: rgba(212, 175, 55, 0.05); }
+
+        .btn-edit-order { background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); color: #22c55e; border-radius: 3px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem; margin-right: 4px; }
+        .btn-edit-order:hover { background: rgba(34, 197, 94, 0.35); }
+        .btn-delete-order { background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.4); color: #dc2626; border-radius: 3px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem; }
+        .btn-delete-order:hover { background: rgba(220, 38, 38, 0.35); }
+
+        .flag-display { margin-top: var(--spacing-sm); padding: var(--spacing-sm); background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 4px; color: var(--color-success); font-size: 0.9rem; }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: #111; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 6px; width: 90%; max-width: 420px; animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-box-header { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(212, 175, 55, 0.15); display: flex; justify-content: space-between; align-items: center; }
+        .modal-box-header h3 { color: var(--color-gold); margin: 0; font-size: 1rem; }
+        .modal-close { background: none; border: none; color: var(--color-text-secondary); font-size: 1.5rem; cursor: pointer; }
+        .modal-close:hover { color: var(--color-gold); }
+        .modal-box-body { padding: 1.5rem; }
+        .modal-box-body .form-group { margin-bottom: 1rem; }
+        .modal-box-body label { display: block; font-size: 0.8rem; color: var(--color-gold); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .modal-box-body input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(212,175,55,0.25); border-radius: 3px; padding: 0.65rem 0.8rem; color: var(--color-text-primary); font-size: 0.9rem; }
+        .modal-box-body input:focus { outline: none; border-color: var(--color-gold); }
+        .modal-box-footer { padding: 1rem 1.5rem; border-top: 1px solid rgba(212,175,55,0.15); display: flex; justify-content: flex-end; gap: 8px; }
+        .btn-modal-cancel { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--color-text-secondary); padding: 8px 16px; border-radius: 3px; cursor: pointer; font-size: 0.85rem; }
+        .btn-modal-cancel:hover { background: rgba(255,255,255,0.1); }
+        .btn-modal-save { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; padding: 8px 16px; border-radius: 3px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .btn-modal-save:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; font-family: var(--font-display); }
+        .tips-box ul { margin: 0; padding-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+
+        @media (max-width: 768px) { .flag-input-inline { width: 160px; } }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="ver.title">垂直越权 - 商家订单管理</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="ver.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="ver.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="challenge-container">
+            <div class="info-box">
+                <p><strong data-i18n="ver.scenario">场景：</strong><span id="scenario-desc" data-i18n="ver.scenarioDesc">你是当前登录的商家，以下是你的订单。编辑和删除操作需要管理员权限。</span></p>
+                <p style="margin-top:6px;"><span data-i18n="ver.currentRole">当前角色：</span><span id="role-display" class="role-badge learner">LEARNER</span></p>
+            </div>
+
+            <!-- 订单表格 -->
+            <div class="orders-table-wrapper">
+                <table class="orders-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="ver.colOrderNo">订单编号</th>
+                            <th data-i18n="ver.colOrderTime">订单时间</th>
+                            <th data-i18n="ver.colProduct">商品名称</th>
+                            <th data-i18n="ver.colPrice">价格</th>
+                            <th data-i18n="ver.colRecipient">收件人</th>
+                            <th data-i18n="ver.colPhone">手机号</th>
+                            <th data-i18n="ver.colAddress">地址</th>
+                            <th data-i18n="ver.colAction">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                        <tr><td colspan="8" style="text-align:center; color: var(--color-text-secondary);" data-i18n="ver.loading">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Flag 结果展示 -->
+            <div id="flag-result" class="flag-display" style="display:none;"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="ver.tips">提示</h3>
+            <ul>
+                <li data-i18n="ver.tip1">你是普通商家，某些操作需要更高的权限……</li>
+                <li data-i18n="ver.tip2">系统中是否有地方可以管理你的账户信息？</li>
+                <li data-i18n="ver.tip3">前端的限制真的可靠吗？</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-box">
+            <div class="modal-box-header">
+                <h3 data-i18n="ver.editOrder">编辑订单</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-box-body">
+                <input type="hidden" id="edit-order-no">
+                <div class="form-group">
+                    <label data-i18n="ver.productName">商品名称</label>
+                    <input type="text" id="edit-product-name" />
+                </div>
+                <div class="form-group">
+                    <label data-i18n="ver.price">价格</label>
+                    <input type="number" step="0.01" id="edit-price" />
+                </div>
+            </div>
+            <div class="modal-box-footer">
+                <button class="btn-modal-cancel" onclick="closeEditModal()" data-i18n="ver.cancel">取消</button>
+                <button class="btn-modal-save" onclick="submitEdit()" data-i18n="ver.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'ver.title': '垂直越权 - 商家订单管理',
+                'ver.flagPlaceholder': '输入 Flag...',
+                'ver.submit': '提交',
+                'ver.scenario': '场景：',
+                'ver.scenarioDesc': '你是当前登录的商家，以下是你的订单。编辑和删除操作需要管理员权限。',
+                'ver.currentRole': '当前角色：',
+                'ver.colOrderNo': '订单编号',
+                'ver.colOrderTime': '订单时间',
+                'ver.colProduct': '商品名称',
+                'ver.colPrice': '价格',
+                'ver.colRecipient': '收件人',
+                'ver.colPhone': '手机号',
+                'ver.colAddress': '地址',
+                'ver.colAction': '操作',
+                'ver.loading': '加载中...',
+                'ver.edit': '编辑',
+                'ver.delete': '删除',
+                'ver.editOrder': '编辑订单',
+                'ver.productName': '商品名称',
+                'ver.price': '价格',
+                'ver.cancel': '取消',
+                'ver.save': '保存',
+                'ver.tips': '提示',
+                'ver.tip1': '你是普通商家，某些操作需要更高的权限……',
+                'ver.tip2': '系统中是否有地方可以管理你的账户信息？',
+                'ver.tip3': '前端的限制真的可靠吗？',
+                'ver.noPermission': '无操作权限',
+                'ver.confirmDelete': '确定要删除此订单吗？',
+                'ver.congrats': '恭喜！垂直越权关卡完成！',
+                'ver.enterFlag': '请输入 Flag',
+                'ver.flagError': 'Flag 不正确',
+                'ver.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'ver.title': 'Vertical Escalation - Merchant Order Management',
+                'ver.flagPlaceholder': 'Enter Flag...',
+                'ver.submit': 'Submit',
+                'ver.scenario': 'Scenario:',
+                'ver.scenarioDesc': 'You are the logged-in merchant. Below are your orders. Edit and delete require admin privileges.',
+                'ver.currentRole': 'Current Role: ',
+                'ver.colOrderNo': 'Order No.',
+                'ver.colOrderTime': 'Order Time',
+                'ver.colProduct': 'Product',
+                'ver.colPrice': 'Price',
+                'ver.colRecipient': 'Recipient',
+                'ver.colPhone': 'Phone',
+                'ver.colAddress': 'Address',
+                'ver.colAction': 'Action',
+                'ver.loading': 'Loading...',
+                'ver.edit': 'Edit',
+                'ver.delete': 'Delete',
+                'ver.editOrder': 'Edit Order',
+                'ver.productName': 'Product Name',
+                'ver.price': 'Price',
+                'ver.cancel': 'Cancel',
+                'ver.save': 'Save',
+                'ver.tips': 'Tips',
+                'ver.tip1': 'You are a regular merchant. Some operations require higher privileges...',
+                'ver.tip2': 'Is there a place in the system to manage your account info?',
+                'ver.tip3': 'Are frontend restrictions really reliable?',
+                'ver.noPermission': 'No Permission',
+                'ver.confirmDelete': 'Are you sure you want to delete this order?',
+                'ver.congrats': 'Congratulations! Vertical escalation challenge completed!',
+                'ver.enterFlag': 'Please enter Flag',
+                'ver.flagError': 'Incorrect flag',
+                'ver.networkError': 'Network error, please try again later'
+            }
+        };
+
+        let currentRole = 'LEARNER';
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            return headers;
+        }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            await loadOrders();
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                    loadOrders();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch('/api/challenge/status_get?vul_type=access-control&vul_level=level2');
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) {}
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'access-control', vul_level: 'level2', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'access-control', level: 'level2', status: status }, '*');
+                }
+            } catch (error) {}
+        }
+
+        function bindEvents() {
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function loadOrders() {
+            try {
+                const response = await fetch('/api/challenge/access/ver/orders', {
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+                const tbody = document.getElementById('orders-tbody');
+
+                if (result.success) {
+                    currentRole = result.role || 'LEARNER';
+                    updateRoleDisplay();
+
+                    if (result.orders && result.orders.length > 0) {
+                        let html = '';
+                        for (const order of result.orders) {
+                            let actionHtml = '';
+                            if (currentRole === 'ADMIN') {
+                                actionHtml = `<button class="btn-edit-order" data-order="${order.orderNo}" data-product="${escapeHtml(order.productName)}" data-price="${order.price}">${t('ver.edit')}</button>` +
+                                             `<button class="btn-delete-order" data-order="${order.orderNo}">${t('ver.delete')}</button>`;
+                            } else {
+                                actionHtml = `<span style="color: var(--color-text-secondary); font-size:0.8rem;">${t('ver.noPermission')}</span>`;
+                            }
+
+                            html += `<tr>
+                                <td><code>${order.orderNo}</code></td>
+                                <td>${order.orderTime}</td>
+                                <td>${order.productName}</td>
+                                <td>&yen;${Number(order.price).toFixed(2)}</td>
+                                <td>${order.recipientName}</td>
+                                <td>${order.recipientPhone}</td>
+                                <td>${order.recipientAddress}</td>
+                                <td>${actionHtml}</td>
+                            </tr>`;
+                        }
+                        tbody.innerHTML = html;
+
+                        // Bind edit buttons
+                        tbody.querySelectorAll('.btn-edit-order').forEach(btn => {
+                            btn.addEventListener('click', () => openEditModal(btn.dataset.order, btn.dataset.product, btn.dataset.price));
+                        });
+                        // Bind delete buttons
+                        tbody.querySelectorAll('.btn-delete-order').forEach(btn => {
+                            btn.addEventListener('click', () => handleDelete(btn.dataset.order));
+                        });
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--color-text-secondary);">暂无订单数据</td></tr>';
+                    }
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--color-danger);">${result.message || t('ver.networkError')}</td></tr>`;
+                }
+            } catch (error) {
+                document.getElementById('orders-tbody').innerHTML = `<tr><td colspan="8" style="text-align:center; color: var(--color-danger);">${t('ver.networkError')}</td></tr>`;
+            }
+        }
+
+        function updateRoleDisplay() {
+            const badge = document.getElementById('role-display');
+            badge.textContent = currentRole;
+            badge.className = 'role-badge ' + (currentRole === 'ADMIN' ? 'admin' : 'learner');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML.replace(/"/g, '&quot;');
+        }
+
+        // Edit modal
+        function openEditModal(orderNo, productName, price) {
+            document.getElementById('edit-order-no').value = orderNo;
+            document.getElementById('edit-product-name').value = productName;
+            document.getElementById('edit-price').value = price;
+            document.getElementById('edit-modal').classList.add('show');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.remove('show');
+        }
+
+        async function submitEdit() {
+            const orderNo = document.getElementById('edit-order-no').value;
+            const productName = document.getElementById('edit-product-name').value.trim();
+            const price = parseFloat(document.getElementById('edit-price').value);
+
+            if (!productName || isNaN(price)) return;
+
+            try {
+                const response = await fetch(`/api/challenge/access/ver/order/${orderNo}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ productName, price })
+                });
+                const result = await response.json();
+
+                if (result.success && result.flag) {
+                    closeEditModal();
+                    showFlag(result.flag, result.message);
+                    loadOrders();
+                } else {
+                    alert(result.message || t('ver.networkError'));
+                }
+            } catch (error) {
+                alert(t('ver.networkError'));
+            }
+        }
+
+        async function handleDelete(orderNo) {
+            if (!confirm(t('ver.confirmDelete'))) return;
+
+            try {
+                const response = await fetch(`/api/challenge/access/ver/order/${orderNo}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+
+                if (result.success && result.flag) {
+                    showFlag(result.flag, result.message);
+                    loadOrders();
+                } else {
+                    alert(result.message || t('ver.networkError'));
+                }
+            } catch (error) {
+                alert(t('ver.networkError'));
+            }
+        }
+
+        function showFlag(flag, message) {
+            const el = document.getElementById('flag-result');
+            el.innerHTML = `<strong>Flag:</strong> ${flag}<br/>${message}`;
+            el.style.display = 'block';
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('ver.enterFlag'); return; }
+
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'access-control', vul_level: 'level2', flag: submittedFlag })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('ver.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'access-control', level: 'level2' }, '*');
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('ver.flagError');
+                }
+            } catch (error) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('ver.networkError'); }
+        }
+
+        // Close modal on overlay click
+        document.getElementById('edit-modal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

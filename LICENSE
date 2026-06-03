@@ -1,0 +1,74 @@
+# MadRabbit License Agreement
+
+Copyright (c) 2024 MadRabbit Authors. All rights reserved.
+
+---
+
+## 授权声明
+
+本项目（MadRabbit Web 漏洞靶场系统）的源代码、文档及相关资源（以下统称"本软件"）的著作权归作者所有。
+
+本软件仅以**漏洞安全教学与练习**为目的开源，使用前请仔细阅读并遵守以下条款。
+
+---
+
+## 许可范围
+
+在遵守以下所有条款的前提下，您可以：
+
+1. **学习使用**：将本软件用于个人学习、安全培训、漏洞原理研究等非商业性教学场景。
+2. **部署运行**：在本地环境或受控的教学网络中部署运行本软件，用于漏洞演示与练习。
+
+---
+
+## 禁止事项
+
+**未经作者事先书面授权，您不得：**
+
+1. **修改源代码**：对本软件的源代码进行任何形式的修改、改编或翻译。
+2. **商业使用**：将本软件的全部或部分用于商业目的，包括但不限于销售、提供付费服务、商业培训、企业内部收费使用等。
+3. **二次开发**：基于本软件进行二次开发、衍生开发，或将其集成到其他产品中。
+4. **再分发**：将本软件（含修改版本）再分发给第三方，或将其上传到其他平台、仓库。
+5. **去除标识**：移除或更改本软件中的版权声明、作者署名及许可协议信息。
+
+---
+
+## 安全警告
+
+> **WARNING / 安全警告**
+>
+> 本软件包含**故意设计的安全漏洞**，仅用于教学演示目的。
+> **严禁**将本软件部署于生产环境或暴露于公共互联网，否则由此产生的一切安全风险及后果由使用者自行承担。
+
+---
+
+## 免责声明
+
+本软件按"原样"提供，作者不对本软件的适用性、安全性、可靠性或任何其他方面作出任何保证，无论明示或暗示。
+
+在任何情况下，作者均不对因使用本软件而导致的任何直接、间接、特殊、偶然或后果性损害承担责任，包括但不限于数据丢失、系统崩溃、安全事件等，即使作者已被告知此类损害的可能性。
+
+---
+
+## 授权联系
+
+如需获取修改、商用或二次开发的书面授权，请联系原作者。
+
+---
+
+## License Summary (English)
+
+This software is provided **solely for educational and training purposes** in web security.
+
+**Without prior written permission from the author, you may NOT:**
+- Modify the source code in any form.
+- Use the software for commercial purposes.
+- Create derivative works or integrate it into other products.
+- Redistribute the software or upload it to other platforms.
+- Remove or alter copyright notices or license information.
+
+The software contains **intentionally vulnerable code** and must **NOT** be deployed in production or exposed to the public internet.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+For licensing inquiries, please contact the original author.

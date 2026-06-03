@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root { --color-bg-dark: #0a0a0a; --color-text-primary: #f5f5f5; --color-text-secondary: #9a9a9a; --color-gold: #d4af37; --color-gold-light: #f4cf57; --color-gold-dark: #b4941f; --color-success: #22c55e; --color-danger: #ff2a2a; --font-display: "Georgia", serif; --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; --spacing-xs: 0.5rem; --spacing-sm: 1rem; --spacing-md: 1.5rem; --spacing-lg: 2rem; --spacing-xl: 3rem; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .main-container { max-width: 500px; margin: 0 auto; }
+        .form-section { background: rgba(255,255,255,0.02); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: var(--spacing-md); }
+        .form-section h3 { color: var(--color-gold); font-family: var(--font-display); margin: 0 0 var(--spacing-md) 0; font-size: 1rem; }
+        .form-group { margin-bottom: var(--spacing-sm); }
+        .form-group label { display: block; font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 5px; }
+        .form-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(212,175,55,0.3); border-radius: 4px; padding: 10px 12px; color: var(--color-text-primary); font-size: 0.9rem; }
+        .form-input:focus { outline: none; border-color: var(--color-gold); }
+        .form-textarea { min-height: 80px; resize: vertical; }
+        .btn-primary { width: 100%; background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: #000; border: none; border-radius: 5px; padding: 11px; font-weight: 600; cursor: pointer; font-size: 0.9rem; margin-top: var(--spacing-sm); }
+        .btn-primary:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+
+        .result-box { margin-top: var(--spacing-md); background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: var(--spacing-md); font-family: 'Courier New', monospace; font-size: 0.82rem; white-space: pre-wrap; word-break: break-all; color: var(--color-text-secondary); display: none; max-height: 250px; overflow-y: auto; }
+        .result-box.show { display: block; }
+        .result-box.success { border-color: rgba(34, 197, 94, 0.3); }
+        .result-box.error { border-color: rgba(255, 42, 42, 0.3); color: var(--color-danger); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; font-family: var(--font-display); font-size: 0.95rem; }
+        .tips-box ul { margin: 0; padding-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 data-i18n="xxe3.title">User Profile</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="xxe3.flagPlaceholder" placeholder="Enter Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="xxe3.submit">Submit</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <div class="form-section">
+                <h3 data-i18n="xxe3.editProfile">Edit Profile</h3>
+                <div class="form-group">
+                    <label data-i18n="xxe3.username">Username</label>
+                    <input type="text" id="input-username" class="form-input" value="alice" />
+                </div>
+                <div class="form-group">
+                    <label data-i18n="xxe3.email">Email</label>
+                    <input type="email" id="input-email" class="form-input" value="alice@example.com" />
+                </div>
+                <div class="form-group">
+                    <label data-i18n="xxe3.bio">Bio</label>
+                    <textarea id="input-bio" class="form-input form-textarea">Security enthusiast</textarea>
+                </div>
+                <button id="btn-save" class="btn-primary" data-i18n="xxe3.save">Save Profile</button>
+            </div>
+
+            <div id="result-box" class="result-box"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="xxe3.hints">Hints</h3>
+            <ul>
+                <li data-i18n="xxe3.hint1">Does this API truly only support JSON?</li>
+                <li data-i18n="xxe3.hint2">What's the server's handling logic for Content-Type?</li>
+                <li data-i18n="xxe3.hint3">Try communicating with the API using different data formats.</li>
+                <li data-i18n="xxe3.hint4">Flag file: file:///flag/xxe-level3.txt</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'xxe3.title': '用户资料',
+                'xxe3.flagPlaceholder': '输入 Flag...',
+                'xxe3.submit': '提交',
+                'xxe3.editProfile': '编辑资料',
+                'xxe3.username': '用户名',
+                'xxe3.email': '邮箱',
+                'xxe3.bio': '简介',
+                'xxe3.save': '保存资料',
+                'xxe3.hints': '提示',
+                'xxe3.hint1': '这个 API 真的只支持 JSON 吗？',
+                'xxe3.hint2': '服务端对 Content-Type 的处理逻辑是什么？',
+                'xxe3.hint3': '尝试用不同的数据格式与 API 交互。',
+                'xxe3.hint4': 'Flag 文件：file:///flag/xxe-level3.txt',
+                'xxe3.congrats': '恭喜！关卡完成！',
+                'xxe3.enterFlag': '请输入 Flag',
+                'xxe3.flagError': 'Flag 不正确',
+                'xxe3.networkError': '网络错误'
+            },
+            'en-US': {
+                'xxe3.title': 'User Profile',
+                'xxe3.flagPlaceholder': 'Enter Flag...',
+                'xxe3.submit': 'Submit',
+                'xxe3.editProfile': 'Edit Profile',
+                'xxe3.username': 'Username',
+                'xxe3.email': 'Email',
+                'xxe3.bio': 'Bio',
+                'xxe3.save': 'Save Profile',
+                'xxe3.hints': 'Hints',
+                'xxe3.hint1': 'Does this API truly only support JSON?',
+                'xxe3.hint2': 'What\'s the server\'s handling logic for Content-Type?',
+                'xxe3.hint3': 'Try communicating with the API using different data formats.',
+                'xxe3.hint4': 'Flag file: file:///flag/xxe-level3.txt',
+                'xxe3.congrats': 'Congratulations! Challenge completed!',
+                'xxe3.enterFlag': 'Please enter Flag',
+                'xxe3.flagError': 'Incorrect flag',
+                'xxe3.networkError': 'Network error'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        async function handleSave() {
+            const username = document.getElementById('input-username').value;
+            const email = document.getElementById('input-email').value;
+            const bio = document.getElementById('input-bio').value;
+            const resultBox = document.getElementById('result-box');
+            try {
+                const res = await fetch('/api/challenge/xxe/level3/profile/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, bio })
+                });
+                const data = await res.json();
+                resultBox.className = 'result-box show ' + (data.success ? 'success' : 'error');
+                resultBox.textContent = JSON.stringify(data, null, 2);
+            } catch (e) { resultBox.className = 'result-box show error'; resultBox.textContent = t('xxe3.networkError'); }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('xxe3.enterFlag'); return; }
+            try {
+                const res = await fetch('/api/challenge/flag_check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vul_type: 'xxe', vul_level: 'level3', flag: submittedFlag }) });
+                const data = await res.json();
+                if (data.success) { flagMessage.className = 'flag-message-inline success'; flagMessage.textContent = t('xxe3.congrats'); if (window.parent !== window) window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'xxe', level: 'level3' }, '*'); }
+                else { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = data.message || t('xxe3.flagError'); }
+            } catch (e) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('xxe3.networkError'); }
+        }
+
+        function applyLanguage() {
+            const lang = getLang(); document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.getAttribute('data-i18n'); if (i18n[lang] && i18n[lang][k]) el.textContent = i18n[lang][k]; });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const k = el.getAttribute('data-i18n-placeholder'); if (i18n[lang] && i18n[lang][k]) el.placeholder = i18n[lang][k]; });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('btn-save').addEventListener('click', handleSave);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+            applyLanguage();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', event => { if (event.data && event.data.type === 'languageChanged') { localStorage.setItem('lang', event.data.language); applyLanguage(); } });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload - Avatar Bypass</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root { --color-bg-dark: #0a0a0a; --color-text-primary: #f5f5f5; --color-text-secondary: #9a9a9a; --color-gold: #d4af37; --color-gold-light: #f4cf57; --color-gold-dark: #b4941f; --color-success: #22c55e; --color-danger: #ff2a2a; --font-display: "Georgia", serif; --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; --spacing-xs: 0.5rem; --spacing-sm: 1rem; --spacing-md: 1.5rem; --spacing-lg: 2rem; --spacing-xl: 3rem; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .challenge-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 700px; margin: 0 auto; }
+        .info-box { background: rgba(212, 175, 55, 0.1); border-left: 3px solid var(--color-gold); padding: var(--spacing-sm); margin-bottom: var(--spacing-md); border-radius: 4px; }
+        .info-box p { margin: 0; color: var(--color-text-secondary); font-size: 0.9rem; line-height: 1.6; }
+        .info-box strong { color: var(--color-gold); }
+
+        .avatar-section { text-align: center; margin-bottom: var(--spacing-md); }
+        .avatar-preview { width: 120px; height: 120px; border-radius: 50%; border: 3px solid rgba(212, 175, 55, 0.4); object-fit: cover; background: rgba(0, 0, 0, 0.3); display: inline-block; overflow: hidden; }
+        .avatar-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-label { display: block; margin-top: var(--spacing-xs); color: var(--color-text-secondary); font-size: 0.85rem; }
+
+        .upload-form { margin-top: var(--spacing-md); }
+        .file-input-wrapper { position: relative; display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+        .file-input-wrapper input[type="file"] { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 3px; padding: 0.6rem 0.8rem; color: var(--color-text-primary); font-size: 0.9rem; }
+        .file-input-wrapper input[type="file"]::file-selector-button { background: rgba(212, 175, 55, 0.2); border: 1px solid rgba(212, 175, 55, 0.4); border-radius: 3px; padding: 4px 12px; color: var(--color-gold); cursor: pointer; font-size: 0.85rem; margin-right: 10px; }
+        .file-info { font-size: 0.8rem; color: var(--color-text-secondary); margin-bottom: var(--spacing-sm); min-height: 1.2em; }
+
+        .action-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 3px; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; width: 100%; }
+        .action-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .action-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .feedback { margin-top: var(--spacing-sm); padding: 0.6rem; border-radius: 3px; font-size: 0.85rem; text-align: center; min-height: 1.2em; display: none; }
+        .feedback.show { display: block; }
+        .feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+        .feedback.warning { background: rgba(255, 149, 0, 0.15); color: #ff9500; border: 1px solid rgba(255, 149, 0, 0.25); }
+        .feedback .blocked-layer { font-weight: bold; display: inline-block; margin-right: 6px; padding: 1px 6px; background: rgba(255, 42, 42, 0.2); border-radius: 3px; }
+
+        .result-area { margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(0, 0, 0, 0.2); border-radius: 4px; display: none; }
+        .result-header { font-size: 0.95rem; color: var(--color-gold); margin-bottom: var(--spacing-sm); }
+        .result-content { font-family: monospace; font-size: 0.85rem; color: var(--color-text-secondary); white-space: pre-wrap; word-break: break-all; }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1>文件上传 - 头像上传绕过</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="challenge-container">
+            <div class="info-box">
+                <p><strong>场景：</strong>用户头像上传功能。请上传一张头像图片。</p>
+            </div>
+
+            <div class="avatar-section">
+                <div class="avatar-preview">
+                    <img id="avatar-img" src="/uploads/avatars/default.png" alt="avatar" onerror="this.style.display='none'" />
+                </div>
+                <span class="avatar-label">当前头像</span>
+            </div>
+
+            <div class="upload-form">
+                <div class="file-input-wrapper">
+                    <input type="file" id="file-input" accept="image/jpeg,image/png,image/gif" />
+                </div>
+                <div id="file-info" class="file-info"></div>
+                <button id="upload-btn" class="action-btn">上传头像</button>
+            </div>
+
+            <div id="feedback" class="feedback"></div>
+
+            <div id="result-area" class="result-area">
+                <div class="result-header">服务器响应</div>
+                <div id="result-content" class="result-content"></div>
+            </div>
+        </div>
+
+        <div class="tips-box">
+            <h3>提示</h3>
+            <ul>
+                <li>系统配置了三层文件校验：扩展名、Content-Type、文件内容</li>
+                <li>每一层都需要分别对付……</li>
+                <li>有时候一个文件可以同时是图片和其他东西</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script>
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            loadAvatar();
+        }
+
+        async function loadAvatar() {
+            try {
+                const res = await fetch('/api/challenge/file-op/upload/avatar');
+                const data = await res.json();
+                if (data.success && data.avatarUrl) {
+                    document.getElementById('avatar-img').src = data.avatarUrl;
+                }
+            } catch (e) {}
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const res = await fetch('/api/challenge/status_get?vul_type=file-operation&vul_level=level1');
+                const data = await res.json();
+                if (data.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (e) {}
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch('/api/challenge/status_update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vul_type: 'file-operation', vul_level: 'level1', status: status }) });
+                if (window.parent !== window) window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'file-operation', level: 'level1', status: status }, '*');
+            } catch (e) {}
+        }
+
+        function bindEvents() {
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+
+            // 前端 JS 校验（第一道防线，练习者需要绕过）
+            fileInput.onchange = function() {
+                const file = this.files[0];
+                const fileInfo = document.getElementById('file-info');
+                const feedback = document.getElementById('feedback');
+                feedback.className = 'feedback';
+
+                if (!file) {
+                    fileInfo.textContent = '';
+                    uploadBtn.disabled = false;
+                    return;
+                }
+
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                const allowedExts = ['.jpg', '.jpeg', '.png', '.gif'];
+                const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+
+                fileInfo.textContent = '文件: ' + file.name + ' | 类型: ' + file.type + ' | 大小: ' + (file.size / 1024).toFixed(1) + 'KB';
+
+                if (!allowedExts.includes(ext) || !allowedTypes.includes(file.type)) {
+                    showFeedback('warning', '只允许上传图片文件 (.jpg, .png, .gif)');
+                    uploadBtn.disabled = true;
+                    return;
+                }
+                uploadBtn.disabled = false;
+            };
+
+            uploadBtn.addEventListener('click', handleUpload);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function handleUpload() {
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showFeedback('error', '请先选择文件');
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '上传中...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/challenge/file-op/upload/avatar', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                // 显示原始响应
+                const resultArea = document.getElementById('result-area');
+                const resultContent = document.getElementById('result-content');
+                resultArea.style.display = 'block';
+                resultContent.textContent = JSON.stringify(data, null, 2);
+
+                if (data.flag) {
+                    showFeedback('success', data.message + ' Flag: ' + data.flag);
+                } else if (data.success) {
+                    showFeedback('success', data.message);
+                    if (data.avatarUrl) {
+                        document.getElementById('avatar-img').src = data.avatarUrl;
+                        document.getElementById('avatar-img').style.display = 'block';
+                    }
+                } else {
+                    let msg = data.message;
+                    if (data.blocked_by) {
+                        msg = '<span class="blocked-layer">[' + data.blocked_by + ']</span> ' + msg;
+                    }
+                    showFeedbackHTML('error', msg);
+                }
+            } catch (e) {
+                showFeedback('error', '网络错误: ' + e.message);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '上传头像';
+            }
+        }
+
+        function showFeedback(type, msg) {
+            const el = document.getElementById('feedback');
+            el.className = 'feedback show ' + type;
+            el.textContent = msg;
+        }
+
+        function showFeedbackHTML(type, html) {
+            const el = document.getElementById('feedback');
+            el.className = 'feedback show ' + type;
+            el.innerHTML = html;
+        }
+
+        async function handleSubmitFlag() {
+            const flag = document.getElementById('flag-input').value.trim();
+            const msg = document.getElementById('flag-message');
+            if (!flag) { msg.className = 'flag-message-inline error'; msg.textContent = '请输入 Flag'; return; }
+            try {
+                const res = await fetch('/api/challenge/flag_check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ vul_type: 'file-operation', vul_level: 'level1', flag: flag }) });
+                const data = await res.json();
+                if (data.success) {
+                    msg.className = 'flag-message-inline success';
+                    msg.textContent = '恭喜！文件上传关卡完成！';
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'file-operation', level: 'level1' }, '*');
+                } else {
+                    msg.className = 'flag-message-inline error';
+                    msg.textContent = 'Flag 不正确';
+                }
+            } catch (e) {
+                msg.className = 'flag-message-inline error';
+                msg.textContent = '网络错误';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

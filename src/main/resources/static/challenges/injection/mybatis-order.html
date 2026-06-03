@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL注入 - MyBatis ORDER BY注入</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .search-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 700px; margin: 0 auto; }
+        .search-form { display: flex; gap: 8px; align-items: center; margin-bottom: var(--spacing-md); }
+        .search-input { flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 3px; padding: 0.75rem 1rem; color: var(--color-text-primary); font-size: 0.95rem; }
+        .search-input:focus { outline: none; border-color: var(--color-gold); }
+        .search-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 3px; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .search-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .search-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .search-feedback { margin-top: 0.5rem; padding: 0.5rem; border-radius: 3px; font-size: 0.8rem; text-align: center; min-height: 1.2em; }
+        .search-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .search-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+
+        .sql-preview { margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--color-text-secondary); word-break: break-all; }
+        .sql-preview .sql-label { color: var(--color-gold-light); }
+        .sql-preview .sql-safe { color: var(--color-success); }
+        .sql-preview .sql-unsafe { color: var(--color-danger); }
+        .sql-toggle {
+            cursor: pointer;
+            margin-left: 8px;
+            color: var(--color-text-secondary);
+            vertical-align: middle;
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .sql-toggle:hover {
+            opacity: 1;
+            color: var(--color-gold-light);
+        }
+
+        .results-table { width: 100%; border-collapse: collapse; margin-top: var(--spacing-md); }
+        .results-table th, .results-table td { border: 1px solid rgba(212, 175, 55, 0.2); padding: 10px 12px; text-align: left; font-size: 0.85rem; }
+        .results-table th { background: rgba(212, 175, 55, 0.1); color: var(--color-gold); font-weight: 600; white-space: nowrap; }
+        .results-table td { color: var(--color-text-primary); }
+        .results-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+        .sort-icon {
+            display: inline-flex;
+            flex-direction: column;
+            vertical-align: middle;
+            margin-left: 3px;
+            cursor: pointer;
+            line-height: 1;
+            font-size: 0.5rem;
+        }
+        .sort-icon .arrow-up,
+        .sort-icon .arrow-down {
+            color: rgba(255, 255, 255, 0.25);
+            transition: color 0.2s;
+            user-select: none;
+        }
+        .sort-icon:hover .arrow-up,
+        .sort-icon:hover .arrow-down {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .sort-icon .arrow-up.active {
+            color: var(--color-gold-light);
+        }
+        .sort-icon .arrow-down.active {
+            color: var(--color-gold-light);
+        }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); margin-top: 0; }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; margin-bottom: 0; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 data-i18n="mybatisOrder.title">SQL注入 - MyBatis ORDER BY注入</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="mybatisOrder.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <div class="search-form">
+                <label for="search-input" data-i18n="mybatisOrder.label" style="color: var(--color-text-secondary); white-space: nowrap;">输入姓名</label>
+                <input type="text" id="search-input" class="search-input" data-i18n-placeholder="mybatisOrder.placeholder" placeholder="输入姓名搜索..." autocomplete="off" />
+                <button id="search-btn" class="search-btn">
+                    <span>🔍</span>
+                    <span data-i18n="mybatisOrder.searchBtn">搜索</span>
+                </button>
+            </div>
+            <div id="search-feedback" class="search-feedback"></div>
+            <div id="sql-preview" class="sql-preview" style="display: none;">
+                <span class="sql-label">SQL:</span>
+                <span id="sql-query-masked">*************************</span>
+                <span id="sql-query" style="display: none;"></span>
+                <span id="sql-toggle" class="sql-toggle" title="显示/隐藏SQL">
+                    <svg id="eye-closed" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                    <svg id="eye-open" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </span>
+            </div>
+            <div id="results-container"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="mybatisOrder.tips">提示</h3>
+            <ul>
+                <li data-i18n="mybatisOrder.tip1">搜索是安全的，但排序呢？不是所有地方都能用预编译哦</li>
+                <li data-i18n="mybatisOrder.tip2">排序字段的背后，可能藏着你看不到的秘密通道</li>
+                <li data-i18n="mybatisOrder.tip3">如果排序的不是列名，而是一个条件判断，会怎样？</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+        const sqlQueryMasked = document.getElementById('sql-query-masked');
+        const sqlToggle = document.getElementById('sql-toggle');
+        const eyeClosed = document.getElementById('eye-closed');
+        const eyeOpen = document.getElementById('eye-open');
+        let sqlVisible = false;
+
+        let currentSort = { column: 'id', dir: 'ASC' };
+        let currentName = '';
+
+        const i18n = {
+            'zh-CN': {
+                'mybatisOrder.title': 'SQL注入 - MyBatis ORDER BY注入',
+                'mybatisOrder.submit': '提交',
+                'mybatisOrder.searchBtn': '搜索',
+                'mybatisOrder.label': '输入姓名',
+                'mybatisOrder.placeholder': '输入姓名搜索...',
+                'mybatisOrder.tips': '提示',
+                'mybatisOrder.tip1': '搜索是安全的，但排序呢？不是所有地方都能用预编译哦',
+                'mybatisOrder.tip2': '排序字段的背后，可能藏着你看不到的秘密通道',
+                'mybatisOrder.tip3': '如果排序的不是列名，而是一个条件判断，会怎样？',
+                'mybatisOrder.congrats': '恭喜！MyBatis ORDER BY注入关卡完成！',
+                'mybatisOrder.enterFlag': '请输入 Flag',
+                'mybatisOrder.flagError': 'Flag 不正确',
+                'mybatisOrder.networkError': '网络错误，请稍后再试',
+                'mybatisOrder.noResults': '未找到结果',
+                'mybatisOrder.sortAsc': '升序',
+                'mybatisOrder.sortDesc': '降序'
+            },
+            'en-US': {
+                'mybatisOrder.title': 'SQL Injection - MyBatis ORDER BY Injection',
+                'mybatisOrder.submit': 'Submit',
+                'mybatisOrder.searchBtn': 'Search',
+                'mybatisOrder.label': 'Enter Name',
+                'mybatisOrder.placeholder': 'Enter name to search...',
+                'mybatisOrder.tips': 'Tips',
+                'mybatisOrder.tip1': 'Search is safe, but what about sorting? Not everywhere can use prepared statements',
+                'mybatisOrder.tip2': 'Behind the sort field, there might be a secret passage you can\'t see',
+                'mybatisOrder.tip3': 'What if the sort isn\'t a column name, but a conditional expression?',
+                'mybatisOrder.congrats': 'Congratulations! MyBatis ORDER BY Injection completed!',
+                'mybatisOrder.enterFlag': 'Please enter Flag',
+                'mybatisOrder.flagError': 'Incorrect flag',
+                'mybatisOrder.networkError': 'Network error, please try again later',
+                'mybatisOrder.noResults': 'No results found',
+                'mybatisOrder.sortAsc': 'ASC',
+                'mybatisOrder.sortDesc': 'DESC'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        function getAuthHeaders() {
+            const token = getToken();
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) { headers['Authorization'] = 'Bearer ' + token; }
+            return headers;
+        }
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            loadInitialData();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+            updateSortButtons();
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch(getApiUrl('/challenge/status_get?vul_type=injection&vul_level=level7'), {
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { /* status check failed silently */ }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch(getApiUrl('/challenge/status_update'), {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ vul_type: 'injection', vul_level: 'level7', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'injection', level: 'level7', status: status }, '*');
+                }
+            } catch (error) { /* status update failed silently */ }
+        }
+
+        function bindEvents() {
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+            document.getElementById('search-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSearch(); });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+            sqlToggle.addEventListener('click', function() {
+                sqlVisible = !sqlVisible;
+                if (sqlVisible) {
+                    sqlQueryMasked.style.display = 'none';
+                    document.getElementById('sql-query').style.display = 'inline';
+                    eyeClosed.style.display = 'none';
+                    eyeOpen.style.display = 'inline';
+                } else {
+                    sqlQueryMasked.style.display = 'inline';
+                    document.getElementById('sql-query').style.display = 'none';
+                    eyeClosed.style.display = 'inline';
+                    eyeOpen.style.display = 'none';
+                }
+            });
+        }
+
+        async function loadInitialData() {
+            await fetchData();
+        }
+
+        function handleSearch() {
+            currentName = document.getElementById('search-input').value.trim();
+            fetchData();
+        }
+
+        function handleSort(column) {
+            if (currentSort.column === column) {
+                currentSort.dir = currentSort.dir === 'ASC' ? 'DESC' : 'ASC';
+            } else {
+                currentSort.column = column;
+                currentSort.dir = 'ASC';
+            }
+            updateSortButtons();
+            fetchData();
+        }
+
+        function updateSortButtons() {
+            ['id', 'name', 'age'].forEach(col => {
+                const icon = document.querySelector('.sort-icon[data-sort="' + col + '"]');
+                if (!icon) return;
+                const up = icon.querySelector('.arrow-up');
+                const down = icon.querySelector('.arrow-down');
+                if (currentSort.column === col) {
+                    if (up) up.classList.toggle('active', currentSort.dir === 'ASC');
+                    if (down) down.classList.toggle('active', currentSort.dir === 'DESC');
+                    icon.title = currentSort.dir === 'ASC' ? t('mybatisOrder.sortAsc') : t('mybatisOrder.sortDesc');
+                } else {
+                    if (up) up.classList.remove('active');
+                    if (down) down.classList.remove('active');
+                    icon.title = t('mybatisOrder.sortAsc') + '/' + t('mybatisOrder.sortDesc');
+                }
+            });
+        }
+
+        async function fetchData() {
+            const feedbackEl = document.getElementById('search-feedback');
+            const sqlPreview = document.getElementById('sql-preview');
+            const sqlQuery = document.getElementById('sql-query');
+            const resultsContainer = document.getElementById('results-container');
+
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'search-feedback';
+
+            const params = new URLSearchParams({
+                name: currentName,
+                orderColumn: currentSort.column,
+                orderDir: currentSort.dir
+            });
+
+            try {
+                const response = await fetch(getApiUrl('/challenge/injection/mybatis/order?' + params.toString()), {
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+
+                if (result.sql) {
+                    sqlPreview.style.display = 'block';
+                    sqlQuery.textContent = result.sql;
+                    sqlVisible = false;
+                    sqlQueryMasked.style.display = 'inline';
+                    sqlQuery.style.display = 'none';
+                    eyeClosed.style.display = 'inline';
+                    eyeOpen.style.display = 'none';
+                }
+
+                if (result.success) {
+                    if (result.injection_detected && result.flag) {
+                        currentFlag = result.flag;
+                        feedbackEl.className = 'search-feedback success';
+                        feedbackEl.textContent = result.message + ' Flag: ' + result.flag;
+                    }
+                    renderResults(result.data);
+                } else {
+                    feedbackEl.className = 'search-feedback error';
+                    feedbackEl.textContent = result.message || t('mybatisOrder.networkError');
+                    if (result.injection_detected && result.flag) {
+                        currentFlag = result.flag;
+                    }
+                }
+            } catch (error) {
+                feedbackEl.className = 'search-feedback error';
+                feedbackEl.textContent = t('mybatisOrder.networkError');
+            }
+        }
+
+        function renderResults(data) {
+            const container = document.getElementById('results-container');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center; padding: 20px;">' + t('mybatisOrder.noResults') + '</p>';
+                return;
+            }
+
+            let html = '<table class="results-table"><thead><tr>' +
+                '<th>ID <span class="sort-icon" data-sort="id" onclick="handleSort(\'id\')"><span class="arrow-up active">▲</span><span class="arrow-down">▼</span></span></th>' +
+                '<th>Name <span class="sort-icon" data-sort="name" onclick="handleSort(\'name\')"><span class="arrow-up">▲</span><span class="arrow-down">▼</span></span></th>' +
+                '<th>Age <span class="sort-icon" data-sort="age" onclick="handleSort(\'age\')"><span class="arrow-up">▲</span><span class="arrow-down">▼</span></span></th>' +
+                '<th>Email</th><th>Role</th><th>Department</th>' +
+                '</tr></thead><tbody>';
+            data.forEach(row => {
+                html += '<tr>' +
+                    '<td>' + (row.id !== undefined ? row.id : '') + '</td>' +
+                    '<td>' + (row.name || '') + '</td>' +
+                    '<td>' + (row.age !== undefined ? row.age : '') + '</td>' +
+                    '<td>' + (row.email || '') + '</td>' +
+                    '<td>' + (row.role || '') + '</td>' +
+                    '<td>' + (row.department || '') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+            updateSortButtons();
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('mybatisOrder.enterFlag');
+                return;
+            }
+
+            try {
+                const response = await fetch(getApiUrl('/challenge/flag_check'), {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ vul_type: 'injection', vul_level: 'level7', flag: submittedFlag })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('mybatisOrder.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'injection', level: 'level7' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('mybatisOrder.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('mybatisOrder.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

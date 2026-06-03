@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MadRabbit's Amusement Park - Login</title>
+    <style>
+        /* ====================================
+           CSS Variables & Reset
+           ==================================== */
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-bg-deep: #050505;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-bronze: #cd7f32;
+            
+            /* 使用系统字体替代 Google Fonts */
+            --font-display: "Georgia", "Times New Roman", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ====================================
+           Body & Background
+           ==================================== */
+        body {
+            font-family: var(--font-body);
+            background: var(--color-bg-dark);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 背景效果 */
+        .bg-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(205, 127, 50, 0.06) 0%, transparent 50%);
+            z-index: 0;
+        }
+
+        .bg-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            z-index: 0;
+            opacity: 0.4;
+        }
+
+        /* 装饰元素 */
+        .decor-line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+            height: 1px;
+            width: 300px;
+            z-index: 0;
+        }
+
+        .decor-line.top {
+            top: 20%;
+            left: -10%;
+        }
+
+        .decor-line.bottom {
+            bottom: 20%;
+            right: -10%;
+        }
+
+        /* ====================================
+           Login Container
+           ==================================== */
+        .login-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: clamp(600px, 95vw, 800px);
+            padding: var(--spacing-xl);
+            animation: fadeInUp 1s ease-out;
+            overflow: visible;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ====================================
+           Header
+           ==================================== */
+        .login-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+            overflow: visible;
+        }
+
+        .brand-icon {
+            width: 70px;
+            height: 60px;
+            margin: 0 auto var(--spacing-sm) auto;
+            display: block;
+        }
+
+        .brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .brand-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.2rem, 5vw, 2.52rem);
+            font-weight: 600;
+            color: var(--color-text-primary);
+            letter-spacing: 0.02em;
+            margin-bottom: var(--spacing-xs);
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            white-space: nowrap;
+            display: block;
+            text-align: center;
+            overflow: visible;
+        }
+
+        .brand-subtitle {
+            font-size: clamp(0.65rem, 2vw, 0.85rem);
+            color: var(--color-text-secondary);
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            display: block;
+            text-align: center;
+        }
+
+        /* ====================================
+           Form Styles
+           ==================================== */
+        .login-form {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            padding: var(--spacing-lg);
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: var(--spacing-md);
+            position: relative;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--color-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: var(--spacing-xs);
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: var(--spacing-sm) 0;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+            color: var(--color-text-primary);
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 400;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-bottom-color: var(--color-gold);
+        }
+
+        .form-input::placeholder {
+            color: rgba(154, 154, 154, 0.5);
+        }
+
+        /* 输入框下划线动画 */
+        .input-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: var(--color-gold);
+            transition: width 0.4s ease;
+        }
+
+        .form-input:focus ~ .input-line {
+            width: 100%;
+        }
+
+        /* ====================================
+           Submit Button
+           ==================================== */
+        .submit-btn {
+            width: 100%;
+            padding: var(--spacing-sm);
+            background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark));
+            border: none;
+            color: var(--color-bg-dark);
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            margin-top: var(--spacing-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .submit-btn:hover::before {
+            left: 100%;
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ====================================
+           Messages
+           ==================================== */
+        .message {
+            padding: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+            font-size: 0.85rem;
+            text-align: center;
+            border-left: 2px solid;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .error-message {
+            background: rgba(220, 38, 38, 0.1);
+            border-left-color: #dc2626;
+            color: #fca5a5;
+            display: none;
+        }
+
+        .success-message {
+            background: rgba(34, 197, 94, 0.1);
+            border-left-color: #22c55e;
+            color: #86efac;
+            display: none;
+        }
+
+        /* ====================================
+           Footer Decoration
+           ==================================== */
+        .footer-decor {
+            text-align: center;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .decor-symbol {
+            font-size: 1.2rem;
+            color: var(--color-gold);
+            opacity: 0.6;
+            display: inline-block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+
+        /* ====================================
+           Responsive Design
+           ==================================== */
+        @media (max-width: 480px) {
+            .login-container {
+                padding: var(--spacing-md);
+                max-width: 98vw;
+            }
+
+            .brand-title {
+                font-size: clamp(1.4rem, 6.3vw, 2.24rem);
+                letter-spacing: 0.02em;
+            }
+
+            .brand-subtitle {
+                font-size: clamp(0.6rem, 2.5vw, 0.7rem);
+                letter-spacing: 0.1em;
+            }
+            
+            .login-form {
+                padding: var(--spacing-md);
+            }
+        }
+
+        /* ====================================
+           Loading Animation
+           ==================================== */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-top-color: var(--color-bg-dark);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景效果 -->
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+    
+    <!-- 装饰线 -->
+    <div class="decor-line top"></div>
+    <div class="decor-line bottom"></div>
+
+    <!-- 登录容器 -->
+    <div class="login-container">
+        <!-- 头部 -->
+        <div class="login-header">
+            <div class="brand-icon">
+                <img src="/logo/madrabbit-logo.svg" alt="MadRabbit Logo">
+            </div>
+            <h1 class="brand-title" data-i18n="dashboard.welcome">MadRabbit's Amusement Park</h1>
+            <p class="brand-subtitle" data-i18n="dashboard.subtitle">Make security vulnerabilities completely crazy~</p>
+        </div>
+
+        <!-- 消息提示 -->
+        <div id="errorMessage" class="message error-message"></div>
+        <div id="successMessage" class="message success-message"></div>
+
+        <!-- 登录表单 -->
+        <form class="login-form" id="loginForm">
+            <div class="form-group">
+                <label class="form-label" for="username" data-i18n="login.username">Username</label>
+                <input 
+                    type="text" 
+                    class="form-input" 
+                    id="username" 
+                    name="username" 
+                    placeholder=""
+                    required
+                    autocomplete="username"
+                >
+                <span class="input-line"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password" data-i18n="login.password">Password</label>
+                <input 
+                    type="password" 
+                    class="form-input" 
+                    id="password" 
+                    name="password" 
+                    placeholder=""
+                    required
+                    autocomplete="current-password"
+                >
+                <span class="input-line"></span>
+            </div>
+
+            <button type="submit" class="submit-btn" id="loginBtn" data-i18n="login.loginButton">
+                Enter
+            </button>
+        </form>
+
+        <!-- 底部装饰 -->
+        <div class="footer-decor">
+            <span class="decor-symbol">✦</span>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // 显示成功信息
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 1500);
+        }
+
+        // 登录处理
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+
+            // 禁用按钮防止重复提交
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<span class="loading"></span>';
+
+            try {
+                // 登录页强制使用英文
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Accept-Language': 'en-US'
+                };
+                
+                const response = await fetch(`${API_CONFIG.API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // 保存 token 到 localStorage
+                    localStorage.setItem(APP_CONFIG.TOKEN_KEY, data.token);
+                    localStorage.setItem(APP_CONFIG.USER_INFO_KEY, JSON.stringify(data.user));
+                    
+                    showSuccess('Login successful');
+                    
+                    // 延迟跳转到漏洞分类首页
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 1000);
+                } else {
+                    showError(data.message || 'Invalid username or password');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Sign In';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Network error, please try again later');
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Sign In';
+            }
+        }
+
+        // 检查是否已登录
+        function checkAuth() {
+            const token = localStorage.getItem(APP_CONFIG.TOKEN_KEY);
+            if (token) {
+                window.location.href = '/index.html';
+            }
+        }
+
+        // 页面加载时检查登录状态
+        checkAuth();
+
+        // 绑定表单提交事件
+        document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    </script>
+</body>
+</html>

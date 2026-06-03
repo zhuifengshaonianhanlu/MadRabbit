@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Native Deserialization</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .challenge-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 750px; margin: 0 auto; }
+        .info-box { background: rgba(0, 0, 0, 0.3); border-radius: 6px; padding: var(--spacing-md); margin-bottom: var(--spacing-lg); }
+        .info-box h3 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; font-size: 0.9rem; }
+        .info-code { background: rgba(0, 0, 0, 0.5); border-radius: 4px; padding: var(--spacing-sm); font-family: 'Courier New', monospace; font-size: 0.8rem; color: var(--color-gold-light); white-space: pre-wrap; overflow-x: auto; word-break: break-all; }
+
+        .form-group { margin-bottom: var(--spacing-md); }
+        .form-group label { display: block; font-size: 0.9rem; color: var(--color-gold); font-weight: 500; margin-bottom: 8px; }
+        .payload-textarea { width: 100%; height: 160px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: var(--spacing-sm); color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; resize: vertical; }
+        .payload-textarea:focus { outline: none; border-color: var(--color-gold); }
+        .action-btn { width: 100%; background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 12px 24px; font-weight: 600; cursor: pointer; font-size: 1rem; margin-top: var(--spacing-sm); }
+        .action-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .secondary-btn { background: rgba(212, 175, 55, 0.15); color: var(--color-gold); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 10px 20px; font-weight: 500; cursor: pointer; font-size: 0.9rem; margin-bottom: var(--spacing-md); }
+        .secondary-btn:hover { background: rgba(212, 175, 55, 0.25); }
+
+        .result-box { margin-top: var(--spacing-md); padding: var(--spacing-md); background: rgba(0, 0, 0, 0.2); border-radius: 6px; display: none; }
+        .result-box h4 { color: var(--color-gold); margin: 0 0 var(--spacing-sm) 0; }
+        .result-content { font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; }
+
+        .feedback { margin-top: var(--spacing-md); padding: var(--spacing-sm); border-radius: 4px; font-size: 0.9rem; text-align: center; min-height: 1.5em; }
+        .feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 id="page-title" data-i18n="nativeDeser.title">Java原生反序列化 - 会话恢复</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" data-i18n-placeholder="nativeDeser.flagPlaceholder" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="nativeDeser.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="challenge-container">
+            <div class="info-box">
+                <h3 data-i18n="nativeDeser.appInfoTitle">应用信息 & Gadget 类结构</h3>
+                <div id="app-info" class="info-code">Loading...</div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: var(--spacing-md);">
+                <button id="get-info-btn" class="secondary-btn" data-i18n="nativeDeser.getInfo">查看 Gadget 类信息</button>
+                <button id="get-session-btn" class="secondary-btn" data-i18n="nativeDeser.getSession">获取安全 Token 示例</button>
+            </div>
+
+            <div class="info-box">
+                <h3 data-i18n="nativeDeser.sessionTitle">当前会话 Token（安全示例）</h3>
+                <div id="session-info" class="info-code" style="font-size: 0.75rem;">点击上方按钮获取...</div>
+            </div>
+
+            <div class="form-group">
+                <label data-i18n="nativeDeser.payloadLabel">提交序列化数据（Base64编码）</label>
+                <textarea id="payload-input" class="payload-textarea" placeholder="rO0ABXNy...（粘贴你构造的恶意序列化 payload）"></textarea>
+            </div>
+
+            <button id="restore-btn" class="action-btn" data-i18n="nativeDeser.restoreSession">反序列化 (ObjectInputStream.readObject)</button>
+
+            <div id="result-box" class="result-box">
+                <h4 data-i18n="nativeDeser.result">反序列化结果</h4>
+                <div id="result-content" class="result-content"></div>
+            </div>
+            <div id="feedback" class="feedback"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="nativeDeser.tips">提示</h3>
+            <ul>
+                <li data-i18n="nativeDeser.tip1">服务端使用 ObjectInputStream.readObject() 直接反序列化你的数据，没有任何过滤</li>
+                <li data-i18n="nativeDeser.tip2">服务端 classpath 中存在 VulnerableTask 类，其 readObject() 会自动执行 command 字段</li>
+                <li data-i18n="nativeDeser.tip3">你需要编写 Java 代码，创建一个 VulnerableTask 实例（command 非空），用 ObjectOutputStream 序列化后提交</li>
+                <li data-i18n="nativeDeser.tip4">关键：类名、包名、serialVersionUID 必须与服务端一致</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        const i18n = {
+            'zh-CN': {
+                'nativeDeser.title': 'Java原生反序列化 - 会话恢复',
+                'nativeDeser.flagPlaceholder': '输入 Flag...',
+                'nativeDeser.submit': '提交',
+                'nativeDeser.appInfoTitle': '应用信息 & Gadget 类结构',
+                'nativeDeser.getInfo': '查看 Gadget 类信息',
+                'nativeDeser.sessionTitle': '当前会话 Token（安全示例）',
+                'nativeDeser.getSession': '获取安全 Token 示例',
+                'nativeDeser.payloadLabel': '提交序列化数据（Base64编码）',
+                'nativeDeser.restoreSession': '反序列化 (ObjectInputStream.readObject)',
+                'nativeDeser.result': '反序列化结果',
+                'nativeDeser.tips': '提示',
+                'nativeDeser.tip1': '服务端使用 ObjectInputStream.readObject() 直接反序列化你的数据，没有任何过滤',
+                'nativeDeser.tip2': '服务端 classpath 中存在 VulnerableTask 类，其 readObject() 会自动执行 command 字段',
+                'nativeDeser.tip3': '你需要编写 Java 代码，创建一个 VulnerableTask 实例（command 非空），用 ObjectOutputStream 序列化后提交',
+                'nativeDeser.tip4': '关键：类名、包名、serialVersionUID 必须与服务端一致',
+                'nativeDeser.congrats': '恭喜！Java原生反序列化关卡完成！',
+                'nativeDeser.enterFlag': '请输入 Flag',
+                'nativeDeser.flagError': 'Flag 不正确',
+                'nativeDeser.networkError': '网络错误，请稍后再试'
+            },
+            'en-US': {
+                'nativeDeser.title': 'Java Native Deserialization - Session Restore',
+                'nativeDeser.flagPlaceholder': 'Enter Flag...',
+                'nativeDeser.submit': 'Submit',
+                'nativeDeser.appInfoTitle': 'App Info & Gadget Class Structure',
+                'nativeDeser.getInfo': 'View Gadget Class Info',
+                'nativeDeser.sessionTitle': 'Current Session Token (Safe Example)',
+                'nativeDeser.getSession': 'Get Safe Token Example',
+                'nativeDeser.payloadLabel': 'Submit Serialized Data (Base64 encoded)',
+                'nativeDeser.restoreSession': 'Deserialize (ObjectInputStream.readObject)',
+                'nativeDeser.result': 'Deserialization Result',
+                'nativeDeser.tips': 'Tips',
+                'nativeDeser.tip1': 'The server uses ObjectInputStream.readObject() to deserialize your data with NO filtering',
+                'nativeDeser.tip2': 'VulnerableTask is on the server classpath - its readObject() auto-executes the command field',
+                'nativeDeser.tip3': 'Write Java code to create a VulnerableTask instance (non-empty command), serialize with ObjectOutputStream, then submit',
+                'nativeDeser.tip4': 'Key: class name, package, and serialVersionUID must match the server',
+                'nativeDeser.congrats': 'Congratulations! Java Native Deserialization challenge completed!',
+                'nativeDeser.enterFlag': 'Please enter Flag',
+                'nativeDeser.flagError': 'Incorrect flag',
+                'nativeDeser.networkError': 'Network error, please try again later'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+        function showFeedback(type, message) { const el = document.getElementById('feedback'); el.className = 'feedback ' + type; el.textContent = message; }
+
+        async function init() {
+            bindEvents();
+            applyLanguage();
+            fetchInfo();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+        }
+
+        function bindEvents() {
+            document.getElementById('get-info-btn').addEventListener('click', fetchInfo);
+            document.getElementById('get-session-btn').addEventListener('click', fetchSession);
+            document.getElementById('restore-btn').addEventListener('click', handleRestore);
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', e => { if (e.key === 'Enter') handleSubmitFlag(); });
+        }
+
+        async function fetchInfo() {
+            try {
+                const response = await fetch('/api/challenge/deser/native/info');
+                const data = await response.json();
+                if (data.success) {
+                    let display = "=== Server Deserialization Config ===\n";
+                    display += JSON.stringify(data.appInfo, null, 2);
+                    display += "\n\n=== Gadget Class on Classpath ===\n";
+                    display += JSON.stringify(data.gadgetClass, null, 2);
+                    document.getElementById('app-info').textContent = display;
+                }
+            } catch (error) {
+                document.getElementById('app-info').textContent = 'Error loading info';
+            }
+        }
+
+        async function fetchSession() {
+            try {
+                const response = await fetch('/api/challenge/deser/native/session');
+                const data = await response.json();
+                if (data.success) {
+                    const displayText = "Token (safe, empty command):\n" + data.sessionToken + "\n\nFormat: " + data.format + "\nMagic Bytes: " + data.magicBytes + "\n\nParsed:\n" + JSON.stringify(data.parsedSession, null, 2);
+                    document.getElementById('session-info').textContent = displayText;
+                    document.getElementById('payload-input').value = data.sessionToken;
+                }
+            } catch (error) {
+                document.getElementById('session-info').textContent = 'Error loading session';
+            }
+        }
+
+        async function handleRestore() {
+            const payload = document.getElementById('payload-input').value.trim();
+            if (!payload) { showFeedback('error', 'Please provide session data'); return; }
+            try {
+                const response = await fetch('/api/challenge/deser/native/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionData: payload })
+                });
+                const result = await response.json();
+
+                document.getElementById('result-box').style.display = 'block';
+                document.getElementById('result-content').textContent = JSON.stringify(result, null, 2);
+
+                if (result.rce_triggered) {
+                    showFeedback('success', result.message);
+                } else if (result.success) {
+                    showFeedback('success', result.message + (result.hint ? '\n' + result.hint : ''));
+                } else {
+                    showFeedback('error', result.message);
+                }
+            } catch (error) { showFeedback('error', t('nativeDeser.networkError')); }
+        }
+
+        async function handleSubmitFlag() {
+            const submittedFlag = document.getElementById('flag-input').value.trim();
+            const flagMessage = document.getElementById('flag-message');
+            if (!submittedFlag) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('nativeDeser.enterFlag'); return; }
+            try {
+                const response = await fetch('/api/challenge/flag_check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vul_type: 'deserialization', vul_level: 'level1', flag: submittedFlag })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('nativeDeser.congrats');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'deserialization', level: 'level1' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('nativeDeser.flagError');
+                }
+            } catch (error) { flagMessage.className = 'flag-message-inline error'; flagMessage.textContent = t('nativeDeser.networkError'); }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

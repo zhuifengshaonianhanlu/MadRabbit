@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL注入 - MyBatis IN条件注入</title>
+    <link rel="stylesheet" href="/css/vuln-types.css">
+    <style>
+        :root {
+            --color-bg-dark: #0a0a0a;
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #9a9a9a;
+            --color-gold: #d4af37;
+            --color-gold-light: #f4cf57;
+            --color-gold-dark: #b4941f;
+            --color-success: #22c55e;
+            --color-danger: #ff2a2a;
+            --font-display: "Georgia", serif;
+            --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            --spacing-xs: 0.5rem;
+            --spacing-sm: 1rem;
+            --spacing-md: 1.5rem;
+            --spacing-lg: 2rem;
+            --spacing-xl: 3rem;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: var(--spacing-lg); background: transparent; color: var(--color-text-primary); font-family: var(--font-body); min-height: 100vh; }
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: var(--spacing-md); padding-bottom: var(--spacing-lg); margin-bottom: var(--spacing-lg); border-bottom: 1px solid transparent; background: linear-gradient(to bottom, transparent calc(100% - 1px), rgba(212, 175, 55, 0.4) calc(100% - 1px), rgba(212, 175, 55, 0.1) 100%) bottom / 100% 1px no-repeat; }
+        .level-content h1 { font-family: var(--font-display); font-size: clamp(1rem, 3vw, 1.8rem); font-weight: 600; color: var(--color-gold); margin: 0; white-space: nowrap; flex-shrink: 0; }
+        .flag-submit-form { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+        .flag-input-inline { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 4px; padding: 8px 12px; color: var(--color-text-primary); font-family: 'Courier New', monospace; font-size: 0.85rem; width: 180px; }
+        .flag-input-inline:focus { outline: none; border-color: var(--color-gold); }
+        .flag-submit-btn-small { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+        .flag-submit-btn-small:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .flag-message-inline { font-size: 0.8rem; margin-left: 8px; }
+        .flag-message-inline.success { color: var(--color-success); }
+        .flag-message-inline.error { color: var(--color-danger); }
+
+        .search-container { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 6px; padding: 1.5rem; max-width: 700px; margin: 0 auto; }
+        .search-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: var(--spacing-sm); }
+        .search-row { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+        .search-field { display: flex; flex-direction: column; gap: 4px; }
+        .search-field label { color: var(--color-text-secondary); font-size: 0.85rem; white-space: nowrap; }
+        .search-input { width: 320px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 3px; padding: 0.65rem 1rem; color: var(--color-text-primary); font-size: 0.9rem; line-height: 1.4; }
+        .search-input:focus { outline: none; border-color: var(--color-gold); }
+        .search-actions { display: none; }
+        .search-label-placeholder { visibility: hidden; font-size: 0.85rem; white-space: nowrap; }
+        .search-btn { background: linear-gradient(135deg, var(--color-gold), var(--color-gold-dark)); color: var(--color-bg-dark); border: none; border-radius: 3px; padding: 0.65rem 1rem; font-size: 0.9rem; line-height: 1.4; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .search-btn:hover { background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold)); }
+        .search-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* 下拉多选框样式 */
+        .role-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .role-dropdown-btn {
+            padding: 0.65rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            min-width: 150px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            transition: border-color 0.2s;
+        }
+        .role-dropdown-btn:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+        }
+        .role-dropdown-btn .arrow {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+        .role-dropdown-btn.open .arrow {
+            transform: rotate(180deg);
+        }
+        .role-dropdown-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            padding: 8px;
+            z-index: 10;
+            min-width: 180px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .role-dropdown-panel.open {
+            display: block;
+        }
+        .role-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            color: var(--color-text-secondary);
+            font-size: 0.8rem;
+            transition: background 0.15s;
+        }
+        .role-option:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        .role-option input[type="checkbox"] {
+            accent-color: var(--color-gold-light);
+            cursor: pointer;
+        }
+
+        .search-feedback { margin-top: 0.5rem; padding: 0.5rem; border-radius: 3px; font-size: 0.8rem; text-align: center; min-height: 1.2em; }
+        .search-feedback.success { background: rgba(34, 197, 94, 0.15); color: var(--color-success); border: 1px solid rgba(34, 197, 94, 0.25); }
+        .search-feedback.error { background: rgba(255, 42, 42, 0.15); color: var(--color-danger); border: 1px solid rgba(255, 42, 42, 0.25); }
+
+        .sql-preview { margin-top: var(--spacing-sm); padding: var(--spacing-xs); background: rgba(0, 0, 0, 0.3); border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--color-text-secondary); word-break: break-all; }
+        .sql-preview .sql-label { color: var(--color-gold-light); }
+        .sql-preview .sql-safe { color: var(--color-success); }
+        .sql-preview .sql-unsafe { color: var(--color-danger); }
+        .sql-toggle {
+            cursor: pointer;
+            margin-left: 8px;
+            color: var(--color-text-secondary);
+            vertical-align: middle;
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .sql-toggle:hover {
+            opacity: 1;
+            color: var(--color-gold-light);
+        }
+
+        .results-table { width: 100%; border-collapse: collapse; margin-top: var(--spacing-md); }
+        .results-table th, .results-table td { border: 1px solid rgba(212, 175, 55, 0.2); padding: 10px 12px; text-align: left; font-size: 0.85rem; }
+        .results-table th { background: rgba(212, 175, 55, 0.1); color: var(--color-gold); font-weight: 600; white-space: nowrap; }
+        .results-table td { color: var(--color-text-primary); }
+        .results-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
+
+        .tips-box { margin-top: var(--spacing-xl); padding: var(--spacing-md); background: rgba(212, 175, 55, 0.05); border-left: 3px solid var(--color-gold); border-radius: 4px; }
+        .tips-box h3 { color: var(--color-gold); margin-bottom: var(--spacing-sm); font-family: var(--font-display); margin-top: 0; }
+        .tips-box ul { margin-left: var(--spacing-md); color: var(--color-text-secondary); line-height: 1.8; margin-bottom: 0; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box code { background: rgba(0, 0, 0, 0.3); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; color: var(--color-gold-light); }
+    </style>
+</head>
+<body>
+    <div class="level-content">
+        <div class="header-section">
+            <h1 data-i18n="mybatisIn.title">SQL注入 - MyBatis IN条件注入</h1>
+            <div class="flag-submit-form">
+                <input type="text" id="flag-input" class="flag-input-inline" placeholder="输入 Flag..." autocomplete="off" />
+                <button id="flag-submit-btn" class="flag-submit-btn-small" data-i18n="mybatisIn.submit">提交</button>
+                <span id="flag-message" class="flag-message-inline"></span>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <div class="search-form">
+                <div class="search-row">
+                    <div class="search-field">
+                        <label for="search-input" data-i18n="mybatisIn.label">姓名</label>
+                        <input type="text" id="search-input" class="search-input" data-i18n-placeholder="mybatisIn.placeholder" placeholder="输入姓名搜索..." autocomplete="off" />
+                    </div>
+                    <div class="search-field">
+                        <label data-i18n="mybatisIn.roleFilterLabel">角色筛选</label>
+                        <div class="role-dropdown" id="role-dropdown">
+                            <div class="role-dropdown-btn" id="role-dropdown-btn">
+                                <span id="role-dropdown-text" data-i18n="mybatisIn.selectRole">选择角色</span>
+                                <span class="arrow">▼</span>
+                            </div>
+                            <div class="role-dropdown-panel" id="role-dropdown-panel">
+                                <label class="role-option"><input type="checkbox" value="user" /> user</label>
+                                <label class="role-option"><input type="checkbox" value="admin" /> admin</label>
+                                <label class="role-option"><input type="checkbox" value="superadmin" /> superadmin</label>
+                                <label class="role-option"><input type="checkbox" value="moderator" /> moderator</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="search-field">
+                        <label class="search-label-placeholder">&nbsp;</label>
+                        <button id="search-btn" class="search-btn">
+                            <span>🔍</span>
+                            <span data-i18n="mybatisIn.searchBtn">搜索</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="search-feedback" class="search-feedback"></div>
+            <div id="sql-preview" class="sql-preview" style="display: none;">
+                <span class="sql-label">SQL:</span>
+                <span id="sql-query-masked">*************************</span>
+                <span id="sql-query" style="display: none;"></span>
+                <span id="sql-toggle" class="sql-toggle" title="显示/隐藏SQL">
+                    <svg id="eye-closed" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                    <svg id="eye-open" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </span>
+            </div>
+            <div id="results-container"></div>
+        </div>
+
+        <div class="tips-box">
+            <h3 data-i18n="mybatisIn.tips">提示</h3>
+            <ul>
+                <li data-i18n="mybatisIn.tip1">搜索框固若金汤，但筛选条件呢？</li>
+                <li data-i18n="mybatisIn.tip2">多选看起来只是几个选项，但传给后端的可不一定只有选项</li>
+                <li data-i18n="mybatisIn.tip3">打开开发者工具，看看请求里藏着什么有趣的参数</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="/js/config.js"></script>
+    <script src="/js/i18n-config.js"></script>
+    <script src="/js/i18n-manager.js"></script>
+    <script>
+        let currentFlag = null;
+        const sqlQueryMasked = document.getElementById('sql-query-masked');
+        const sqlToggle = document.getElementById('sql-toggle');
+        const eyeClosed = document.getElementById('eye-closed');
+        const eyeOpen = document.getElementById('eye-open');
+        let sqlVisible = false;
+
+        const i18n = {
+            'zh-CN': {
+                'mybatisIn.title': 'SQL注入 - MyBatis IN条件注入',
+                'mybatisIn.submit': '提交',
+                'mybatisIn.searchBtn': '搜索',
+                'mybatisIn.label': '姓名搜索',
+                'mybatisIn.placeholder': '输入姓名搜索...',
+                'mybatisIn.roleFilterLabel': '角色筛选',
+                'mybatisIn.selectRole': '选择角色',
+                'mybatisIn.selectedRoles': '已选 {n} 个角色',
+                'mybatisIn.tips': '提示',
+                'mybatisIn.tip1': '搜索框固若金汤，但筛选条件呢？',
+                'mybatisIn.tip2': '多选看起来只是几个选项，但传给后端的可不一定只有选项',
+                'mybatisIn.tip3': '打开开发者工具，看看请求里藏着什么有趣的参数',
+                'mybatisIn.congrats': '恭喜！MyBatis IN条件注入关卡完成！',
+                'mybatisIn.enterFlag': '请输入 Flag',
+                'mybatisIn.flagError': 'Flag 不正确',
+                'mybatisIn.networkError': '网络错误，请稍后再试',
+                'mybatisIn.noResults': '未找到结果'
+            },
+            'en-US': {
+                'mybatisIn.title': 'SQL Injection - MyBatis IN Clause Injection',
+                'mybatisIn.submit': 'Submit',
+                'mybatisIn.searchBtn': 'Search',
+                'mybatisIn.label': 'Name Search',
+                'mybatisIn.placeholder': 'Enter name to search...',
+                'mybatisIn.roleFilterLabel': 'Role Filter',
+                'mybatisIn.selectRole': 'Select Role',
+                'mybatisIn.selectedRoles': '{n} roles selected',
+                'mybatisIn.tips': 'Tips',
+                'mybatisIn.tip1': 'The search box is rock solid, but what about the filter?',
+                'mybatisIn.tip2': 'Multiple selections look like just options, but what\'s sent to the backend might be more',
+                'mybatisIn.tip3': 'Open DevTools and see what interesting parameters hide in the request',
+                'mybatisIn.congrats': 'Congratulations! MyBatis IN Clause Injection completed!',
+                'mybatisIn.enterFlag': 'Please enter Flag',
+                'mybatisIn.flagError': 'Incorrect flag',
+                'mybatisIn.networkError': 'Network error, please try again later',
+                'mybatisIn.noResults': 'No results found'
+            }
+        };
+
+        function getLang() { return localStorage.getItem('lang') || 'en-US'; }
+        function t(key) { const lang = getLang(); return i18n[lang] && i18n[lang][key] ? i18n[lang][key] : key; }
+
+        function getAuthHeaders() {
+            const token = getToken();
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) { headers['Authorization'] = 'Bearer ' + token; }
+            return headers;
+        }
+
+        // ========== 下拉多选框逻辑 ==========
+
+        function getSelectedRoles() {
+            const checkboxes = document.querySelectorAll('#role-dropdown-panel input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => "'" + cb.value + "'").join(',');
+        }
+
+        function updateDropdownText() {
+            const btn = document.getElementById('role-dropdown-btn');
+            const textEl = document.getElementById('role-dropdown-text');
+            const checkboxes = document.querySelectorAll('#role-dropdown-panel input[type="checkbox"]:checked');
+            const count = checkboxes.length;
+
+            if (count === 0) {
+                textEl.textContent = t('mybatisIn.selectRole');
+                btn.classList.remove('has-selection');
+            } else {
+                textEl.textContent = t('mybatisIn.selectedRoles').replace('{n}', count);
+                btn.classList.add('has-selection');
+            }
+        }
+
+        function toggleDropdown() {
+            const panel = document.getElementById('role-dropdown-panel');
+            const btn = document.getElementById('role-dropdown-btn');
+            const isOpen = panel.classList.contains('open');
+            if (isOpen) {
+                panel.classList.remove('open');
+                btn.classList.remove('open');
+            } else {
+                panel.classList.add('open');
+                btn.classList.add('open');
+            }
+        }
+
+        function closeDropdown() {
+            const panel = document.getElementById('role-dropdown-panel');
+            const btn = document.getElementById('role-dropdown-btn');
+            panel.classList.remove('open');
+            btn.classList.remove('open');
+        }
+
+        // ========== 初始化与事件 ==========
+
+        async function init() {
+            await checkAndUpdateChallengeStatus();
+            bindEvents();
+            applyLanguage();
+            loadInitialData();
+            window.addEventListener('languageChanged', applyLanguage);
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'languageChanged') {
+                    localStorage.setItem('lang', event.data.language);
+                    applyLanguage();
+                }
+            });
+        }
+
+        function applyLanguage() {
+            const lang = getLang();
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (i18n[lang] && i18n[lang][key]) el.textContent = i18n[lang][key];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (i18n[lang] && i18n[lang][key]) el.placeholder = i18n[lang][key];
+            });
+            updateDropdownText();
+        }
+
+        async function checkAndUpdateChallengeStatus() {
+            try {
+                const response = await fetch(getApiUrl('/challenge/status_get?vul_type=injection&vul_level=level8'), {
+                    headers: getAuthHeaders()
+                });
+                const result = await response.json();
+                if (result.status === '未开始') await updateChallengeStatus('进行中');
+            } catch (error) { /* status check failed silently */ }
+        }
+
+        async function updateChallengeStatus(status) {
+            try {
+                await fetch(getApiUrl('/challenge/status_update'), {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ vul_type: 'injection', vul_level: 'level8', status: status })
+                });
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'challengeStatusChanged', vulnType: 'injection', level: 'level8', status: status }, '*');
+                }
+            } catch (error) { /* status update failed silently */ }
+        }
+
+        function bindEvents() {
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+            document.getElementById('search-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') handleSearch(); });
+            document.getElementById('flag-submit-btn').addEventListener('click', handleSubmitFlag);
+            document.getElementById('flag-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') handleSubmitFlag(); });
+
+            // SQL预览眼睛切换
+            sqlToggle.addEventListener('click', function() {
+                sqlVisible = !sqlVisible;
+                if (sqlVisible) {
+                    sqlQueryMasked.style.display = 'none';
+                    document.getElementById('sql-query').style.display = 'inline';
+                    eyeClosed.style.display = 'none';
+                    eyeOpen.style.display = 'inline';
+                } else {
+                    sqlQueryMasked.style.display = 'inline';
+                    document.getElementById('sql-query').style.display = 'none';
+                    eyeClosed.style.display = 'inline';
+                    eyeOpen.style.display = 'none';
+                }
+            });
+
+            // 下拉多选框切换
+            document.getElementById('role-dropdown-btn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleDropdown();
+            });
+
+            // 复选框变化时更新按钮文字
+            document.querySelectorAll('#role-dropdown-panel input[type="checkbox"]').forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                    updateDropdownText();
+                });
+            });
+
+            // 阻止面板内点击冒泡关闭
+            document.getElementById('role-dropdown-panel').addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+
+            // 点击外部区域关闭下拉面板
+            document.addEventListener('click', function(e) {
+                var dropdown = document.getElementById('role-dropdown');
+                if (!dropdown.contains(e.target)) {
+                    closeDropdown();
+                }
+            });
+        }
+
+        async function loadInitialData() {
+            // 默认不选任何角色，返回全部数据
+            await fetchData('', '');
+        }
+
+        async function handleSearch() {
+            var name = document.getElementById('search-input').value.trim();
+            var roles = getSelectedRoles();
+            fetchData(name, roles);
+        }
+
+        async function fetchData(name, roles) {
+            var feedbackEl = document.getElementById('search-feedback');
+            var sqlPreview = document.getElementById('sql-preview');
+            var sqlQuery = document.getElementById('sql-query');
+            var resultsContainer = document.getElementById('results-container');
+
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'search-feedback';
+
+            var params = new URLSearchParams();
+            params.append('name', name || '');
+            if (roles) {
+                params.append('roles', roles);
+            }
+
+            try {
+                var response = await fetch(getApiUrl('/challenge/injection/mybatis/in?' + params.toString()), {
+                    headers: getAuthHeaders()
+                });
+                var result = await response.json();
+
+                if (result.sql) {
+                    sqlPreview.style.display = 'block';
+                    sqlQuery.textContent = result.sql;
+                    sqlVisible = false;
+                    sqlQueryMasked.style.display = 'inline';
+                    sqlQuery.style.display = 'none';
+                    eyeClosed.style.display = 'inline';
+                    eyeOpen.style.display = 'none';
+                }
+
+                if (result.success) {
+                    if (result.injection_detected && result.flag) {
+                        currentFlag = result.flag;
+                        feedbackEl.className = 'search-feedback success';
+                        feedbackEl.textContent = result.message + ' Flag: ' + result.flag;
+                    }
+                    renderResults(result.data);
+                } else {
+                    feedbackEl.className = 'search-feedback error';
+                    feedbackEl.textContent = result.message || t('mybatisIn.networkError');
+                    if (result.injection_detected && result.flag) {
+                        currentFlag = result.flag;
+                    }
+                }
+            } catch (error) {
+                feedbackEl.className = 'search-feedback error';
+                feedbackEl.textContent = t('mybatisIn.networkError');
+            }
+        }
+
+        function renderResults(data) {
+            var container = document.getElementById('results-container');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center; padding: 20px;">' + t('mybatisIn.noResults') + '</p>';
+                return;
+            }
+
+            var html = '<table class="results-table"><thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Email</th><th>Role</th><th>Department</th></tr></thead><tbody>';
+            data.forEach(function(row) {
+                html += '<tr>' +
+                    '<td>' + (row.id !== undefined ? row.id : '') + '</td>' +
+                    '<td>' + (row.name || '') + '</td>' +
+                    '<td>' + (row.age !== undefined ? row.age : '') + '</td>' +
+                    '<td>' + (row.email || '') + '</td>' +
+                    '<td>' + (row.role || '') + '</td>' +
+                    '<td>' + (row.department || '') + '</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        async function handleSubmitFlag() {
+            var submittedFlag = document.getElementById('flag-input').value.trim();
+            var flagMessage = document.getElementById('flag-message');
+
+            if (!submittedFlag) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('mybatisIn.enterFlag');
+                return;
+            }
+
+            try {
+                var response = await fetch(getApiUrl('/challenge/flag_check'), {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ vul_type: 'injection', vul_level: 'level8', flag: submittedFlag })
+                });
+                var result = await response.json();
+
+                if (result.success) {
+                    flagMessage.className = 'flag-message-inline success';
+                    flagMessage.textContent = t('mybatisIn.congrats');
+                    await updateChallengeStatus('已完成');
+                    if (window.parent !== window) {
+                        window.parent.postMessage({ type: 'challengeCompleted', vulnType: 'injection', level: 'level8' }, '*');
+                    }
+                } else {
+                    flagMessage.className = 'flag-message-inline error';
+                    flagMessage.textContent = result.message || t('mybatisIn.flagError');
+                }
+            } catch (error) {
+                flagMessage.className = 'flag-message-inline error';
+                flagMessage.textContent = t('mybatisIn.networkError');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
