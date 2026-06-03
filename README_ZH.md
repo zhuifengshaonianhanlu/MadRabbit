@@ -2,7 +2,8 @@
 
 # MadRabbit：Web 安全漏洞靶场平台
 
-![Web安全](https://img.shields.io/badge/Web%E5%AE%89%E5%85%A8-%E9%9D%B6%E5%9C%BA-red) ![Java](https://img.shields.io/badge/Java%20%2B%20Spring%20Boot-17%20%2B%202.7-007396) ![版本](https://img.shields.io/badge/%E7%89%88%E6%9C%AC-v1.0-blue) ![GitHub stars](https://img.shields.io/github/stars/zhuifengshaonianhanlu/MadRabbit?style=social) ![GitHub forks](https://img.shields.io/github/forks/zhuifengshaonianhanlu/MadRabbit?style=social) ![许可证](https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-%E8%87%AA%E5%AE%9A%E4%B9%89-orange)
+![Web安全](https://img.shields.io/badge/Web%E5%AE%89%E5%85%A8-%E9%9D%B6%E5%9C%BA-red) ![Java](https://img.shields.io/badge/Java%20%2B%20Spring%20Boot-17%20%2B%202.7-007396) ![版本](https://img.shields.io/badge/%E7%89%88%E6%9C%AC-v1.0-blue) ![GitHub stars](https://img.shields.io/github/stars/zhuifengshaonianhanlu/MadRabbit?style=social) ![GitHub forks](https://img.shields.io/github/forks/zhuifengshaonianhanlu/MadRabbit?style=social) 
+![](https://img.shields.io/badge/Status-Developing-green)
 
 ## 1. 介绍
 
