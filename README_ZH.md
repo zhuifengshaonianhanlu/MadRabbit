@@ -2,6 +2,7 @@
 
 # MadRabbit：Web 安全漏洞靶场平台
 
+![Web安全](https://img.shields.io/badge/Web%E5%AE%89%E5%85%A8-%E9%9D%B6%E5%9C%BA-red) ![Java](https://img.shields.io/badge/Java%20%2B%20Spring%20Boot-17%20%2B%202.7-007396) ![版本](https://img.shields.io/badge/%E7%89%88%E6%9C%AC-v1.0-blue) ![GitHub stars](https://img.shields.io/github/stars/zhuifengshaonianhanlu/MadRabbit?style=social) ![GitHub forks](https://img.shields.io/github/forks/zhuifengshaonianhanlu/MadRabbit?style=social) ![许可证](https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-%E8%87%AA%E5%AE%9A%E4%B9%89-orange)
 
 ## 1. 介绍
 
@@ -57,9 +58,8 @@ MadRabbit 是一个面向 Web 安全学习和研究者的漏洞靶场系统，�
 ### 3.1 获取源码
 
 ```bash
-# 克隆项目到本地
-git clone <项目仓库地址> madX
-cd madX
+git clone https://github.com/zhuifengshaonianhanlu/MadRabbit.git
+cd MadRabbit
 ```
 
 ### 3.2 启动 MySQL 并创建数据库
@@ -199,6 +199,3 @@ Started MadrabbitApplication in X.XXX seconds
 
 ---
 
-## 8. Star 历史
-
-如果你觉得本项目对你有帮助，请给个 Star 支持一下！

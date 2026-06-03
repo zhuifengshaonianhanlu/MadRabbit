@@ -2,8 +2,7 @@
 
 # MadRabbit: A Web Security Vulnerability Lab Platform
 
-
-
+![Web Security](https://img.shields.io/badge/Web%20Security-Lab-red) ![Java](https://img.shields.io/badge/Java%20%2B%20Spring%20Boot-17%20%2B%202.7-007396) ![Version](https://img.shields.io/badge/Version-v1.0-blue) ![GitHub stars](https://img.shields.io/github/stars/zhuifengshaonianhanlu/MadRabbit?style=social) ![GitHub forks](https://img.shields.io/github/forks/zhuifengshaonianhanlu/MadRabbit?style=social) ![License](https://img.shields.io/badge/License-Custom-orange)
 
 ## 1. Introduction
 
@@ -59,8 +58,8 @@ Before deploying, ensure the following software is installed:
 ### 3.1 Clone the Repository
 
 ```bash
-git clone <repository-url> madX
-cd madX
+git clone https://github.com/zhuifengshaonianhanlu/MadRabbit.git
+cd MadRabbit
 ```
 
 ### 3.2 Start MySQL and Create the Database
@@ -201,6 +200,3 @@ This project is licensed under a custom license. See the [LICENSE](LICENSE) file
 
 ---
 
-## 8. Star History
-
-If you find this project helpful, please give it a star!
