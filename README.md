@@ -200,3 +200,4 @@ This project is licensed under a custom license. See the [LICENSE](LICENSE) file
 
 ---
 
+<p align="center"><b>Stay passionate, stay curious. ❤️‍🔥</b></p>
