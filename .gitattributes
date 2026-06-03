@@ -1,0 +1,12 @@
+# 静态资源不参与语言统计（HTML/JS/CSS/MD 均为教学页面资源）
+src/main/resources/static/**/*.html linguist-detectable=false
+src/main/resources/static/**/*.css linguist-detectable=false
+src/main/resources/static/**/*.js linguist-detectable=false
+src/main/resources/static/**/*.json linguist-detectable=false
+src/main/resources/static/knowledge/**/*.md linguist-detectable=false
+
+# SQL 初始化脚本不参与语言统计
+sql/**/*.sql linguist-detectable=false
+
+# 项目文档不参与语言统计
+*.md linguist-detectable=false
