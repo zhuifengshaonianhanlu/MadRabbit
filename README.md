@@ -8,6 +8,9 @@
 
 MadRabbit is a vulnerability lab platform designed for web security learners and researchers. It covers 13 common web vulnerability categories, each containing multiple challenge levels with different business scenarios. Through studying and practicing these vulnerabilities, you can become a proficient web security engineer.
 
+
+👋[WIKI](https://madrabbit-vul.github.io/wiki/)<br>
+
 ### 1.1 A Note
 
 In an era where AI can discover 10,000+ vulnerabilities in a month, is it still useful to learn the underlying principles of vulnerabilities?
