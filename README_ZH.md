@@ -7,7 +7,7 @@
 
 ## 1. 介绍
 
-MadRabbit 是一个面向 Web 安全学习和研究者的漏洞靶场系统，涵盖了 13 类常见 Web 漏洞，每类漏洞又由多个不同业务场景的关卡组成。通过研究和练习这些漏洞，让你成为一个合格的 Web 安全工程师。<br>
+MadRabbit 是一个面向 Web 安全学习和研究者的漏洞靶场系统，涵盖了 13 类常见 Web 漏洞，每类漏洞又由多个不同业务场景的关卡组成。通过研究和练习这些漏洞，让你成为一个合格的 、激情燃烧的安全工程师。<br>
 
 
 👋[获取秘籍](https://madrabbit-vul.github.io/wiki/)<br>
@@ -48,7 +48,7 @@ MadRabbit 是一个面向 Web 安全学习和研究者的漏洞靶场系统，�
 
 | 依赖 | 最低版本 | 用途 | 验证命令 |
 |------|---------|------|---------|
-| JDK | 17 | 运行 Java 应用 | `java -version` |
+| JDK | 17+ | 运行 Java 应用 | `java -version` |
 | Maven | 3.6+ | 构建项目 | `mvn -version` |
 | MySQL | 8.0+ | 数据库服务 | `mysql --version` |
 | IDE | 任意 | 源码调试 | 任意你喜欢的 IDE |
@@ -57,7 +57,8 @@ MadRabbit 是一个面向 Web 安全学习和研究者的漏洞靶场系统，�
 
 ## 3. 源码部署步骤
 
-> **提示**：为了从源码层面深入理解和掌握漏洞原理，强烈建议你用源码部署本项目。
+> **提示**：为了从源码层面深入理解和掌握漏洞原理,强烈建议你用源码部署本项目,并在IDE中运行和启动本项目。
+> **提示**：练靶场最没用的就是搞个payload打一下拿到flag,原理没搞懂,没鸟用~
 
 ### 3.1 获取源码
 
@@ -100,7 +101,7 @@ mysql -u root -p < sql/install_init.sql
 mysql -u root -p madrabbit -e "SHOW TABLES; SELECT COUNT(*) AS user_count FROM users; SELECT COUNT(*) AS flag_count FROM flags;"
 ```
 
-预期输出应包含 6 张表、6 个用户、50+ 条 Flag 记录。
+预期输出应包含 6 张表、6 个用户、50+ 条 Flag 记录,则表示正常.
 
 ### 3.3 配置数据库连接
 
@@ -116,7 +117,7 @@ spring:
 
 ### 3.4 编译项目
 
-> **提示**：建议你直接用 IDE 打开项目源码，在 IDE 里面编译和运行。下面是手动使用 Maven 命令的步骤：
+> **提示**：建议你直接用 IDE 打开项目源码，在 IDE 里面编译和启动。下面是手动使用 Maven 命令的步骤：
 
 ```bash
 mvn clean package -DskipTests

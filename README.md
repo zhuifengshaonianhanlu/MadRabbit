@@ -6,7 +6,7 @@
 
 ## 1. Introduction
 
-MadRabbit is a vulnerability lab platform designed for web security learners and researchers. It covers 13 common web vulnerability categories, each containing multiple challenge levels with different business scenarios. Through studying and practicing these vulnerabilities, you can become a proficient web security engineer.
+MadRabbit is a vulnerability target system tailored for web security learners and researchers, covering 13 common categories of web vulnerabilities, with each category containing multiple challenge levels built around distinct business scenarios. Studying and practicing these vulnerabilities will equip you to become a competent and passionate cybersecurity engineer.
 
 
 👋[WIKI](https://madrabbit-vul.github.io/wiki/)<br>
@@ -47,7 +47,7 @@ Before deploying, ensure the following software is installed:
 
 | Dependency | Minimum Version | Purpose | Verify |
 |------------|----------------|---------|--------|
-| JDK | 17 | Runtime | `java -version` |
+| JDK | 17+ | Runtime | `java -version` |
 | Maven | 3.6+ | Build | `mvn -version` |
 | MySQL | 8.0+ | Database | `mysql --version` |
 | IDE | Any | Source debugging | Your preferred IDE |
@@ -56,7 +56,8 @@ Before deploying, ensure the following software is installed:
 
 ## 3. Deployment from Source
 
-> **Tip**: To deeply understand vulnerability principles from the source code level, we strongly recommend deploying from source.
+> **Tip**: To gain an in-depth understanding of vulnerability fundamentals at the source code level, you are strongly advised to deploy this project from source and launch it within an IDE.
+> **Tip**: Just firing payloads for flags without grasping core concepts is pointless for lab training.
 
 ### 3.1 Clone the Repository
 
